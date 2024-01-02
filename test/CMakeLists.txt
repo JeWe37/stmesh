@@ -7,7 +7,7 @@ project(CmakeConfigPackageTests LANGUAGES CXX)
 if(PROJECT_IS_TOP_LEVEL OR TEST_INSTALLED_VERSION)
   enable_testing()
 
-  find_package(stmesh CONFIG REQUIRED) # for intro, project_options, ...
+  find_package(stmesh CONFIG REQUIRED) # for stmesher, project_options, ...
 
   if(NOT TARGET stmesh_options)
     message(FATAL_ERROR "Requiered config package not found!")
@@ -20,13 +20,13 @@ endif()
 include(${Catch2_SOURCE_DIR}/extras/Catch.cmake)
 
 # Provide a simple smoke test to make sure that the CLI works and can display a --help message
-add_test(NAME cli.has_help COMMAND intro --help)
+add_test(NAME cli.has_help COMMAND stmesher --help)
 
 # Provide a test to verify that the version being reported from the application
 # matches the version given to CMake. This will be important once you package
 # your program. Real world shows that this is the kind of simple mistake that is easy
 # to make, but also easy to test for.
-add_test(NAME cli.version_matches COMMAND intro --version)
+add_test(NAME cli.version_matches COMMAND stmesher --version)
 set_tests_properties(cli.version_matches PROPERTIES PASS_REGULAR_EXPRESSION "${PROJECT_VERSION}")
 
 add_executable(tests tests.cpp)
@@ -34,7 +34,7 @@ target_link_libraries(
   tests
   PRIVATE stmesh::stmesh_warnings
           stmesh::stmesh_options
-          stmesh::sample_library
+          stmesh::stmesh
           Catch2::Catch2WithMain)
 
 if(WIN32 AND BUILD_SHARED_LIBS)
@@ -66,7 +66,7 @@ target_link_libraries(
   constexpr_tests
   PRIVATE stmesh::stmesh_warnings
           stmesh::stmesh_options
-          stmesh::sample_library
+          stmesh::stmesh
           Catch2::Catch2WithMain)
 
 catch_discover_tests(
@@ -89,7 +89,7 @@ target_link_libraries(
   relaxed_constexpr_tests
   PRIVATE stmesh::stmesh_warnings
           stmesh::stmesh_options
-          stmesh::sample_library
+          stmesh::stmesh
           Catch2::Catch2WithMain)
 target_compile_definitions(relaxed_constexpr_tests PRIVATE -DCATCH_CONFIG_RUNTIME_STATIC_REQUIRE)
 

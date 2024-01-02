@@ -1,0 +1,36 @@
+image: docker:git
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  #
+  # This instructs Docker not to start over TLS.
+  DOCKER_TLS_CERTDIR: ""
+  GIT_SUBMODULE_STRATEGY: recursive
+  configurations: unixlike-gcc-debug unixlike-clang-debug unixlike-gcc-release unixlike-clang-release
+
+services:
+  - docker:dind
+
+default:
+  cache:
+    key: build-folder
+    paths:
+      - out
+
+compile:
+  stage: build
+  script:
+    - |+
+      for config in $configurations
+      do
+        ./ci/run_docker_build.sh build $config
+      done
+
+test:
+  stage: test
+  script:
+    - |+
+      for config in $configurations
+      do
+        ./ci/run_docker_build.sh test $config
+      done

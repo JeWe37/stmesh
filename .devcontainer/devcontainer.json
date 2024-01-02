@@ -8,34 +8,40 @@
 		// Update 'GCC_VER' to pick a gcc and g++ version. Options: [7, 8, 9, 10, 11]. Default: 11
 		// Update 'LLVM_VER' to pick clang version. Options: [10, 11, 12, 13]. Default: 13
 		// Update 'USE_CLANG' to set clang as the default C and C++ compiler. Options: [1, null]. Default null
-		// "args": {
-		// 	"VARIANT": "focal",
-		// 	"GCC_VER": "11",
-		// 	"LLVM_VER": "13"
-		// }
+		"args": {
+			"VARIANT": "jammy",
+			"GCC_VER": "13",
+			"LLVM_VER": "17"
+		}
 	},
 	"runArgs": [
 		"--cap-add=SYS_PTRACE",
 		"--security-opt",
 		"seccomp=unconfined"
 	],
-	// Set *default* container specific settings.json values on container create.
-	"settings": {
-		"cmake.configureOnOpen": true,
-		"editor.formatOnSave": true
+	"customizations": {
+		"vscode": {
+			// Set *default* container specific settings.json values on container create.
+			"settings": {
+				"cmake.configureOnOpen": true,
+				"editor.formatOnSave": true
+			},
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"ms-vscode.cpptools",
+				"ms-vscode.cmake-tools",
+				"twxs.cmake",
+				"ms-vscode.cpptools-themes",
+				"cschlosser.doxdocgen",
+				"eamodio.gitlens",
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"mutantdino.resourcemonitor",
+				"llvm-vs-code-extensions.vscode-clangd",
+				"GitHub.copilot"
+			]
+		}
 	},
-	// Add the IDs of extensions you want installed when the container is created.
-	"extensions": [
-		"ms-vscode.cpptools",
-		"ms-vscode.cmake-tools",
-		"twxs.cmake",
-		"ms-vscode.cpptools-themes",
-		"cschlosser.doxdocgen",
-		"eamodio.gitlens",
-		"ms-python.python",
-		"ms-python.vscode-pylance",
-		"mutantdino.resourcemonitor"
-	],
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// "forwardPorts": [],
 	// Use 'postCreateCommand' to run commands after the container is created.
@@ -46,7 +52,6 @@
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 	"features": {
 		"git": "latest",
-		"git-lfs": "latest",
-		"powershell": "latest"
+		"git-lfs": "latest"
 	}
 }

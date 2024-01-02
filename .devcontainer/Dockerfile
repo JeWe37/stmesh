@@ -13,9 +13,9 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
         make ninja-build git \
         python3 python3-pip
 
-# Install conan
+# Install conan and pre-commit
 RUN python3 -m pip install --upgrade pip setuptools && \
-    python3 -m pip install conan && \
+    python3 -m pip install conan pre-commit && \
     conan --version
 
 # By default, anything you run in Docker is done as superuser.
@@ -50,7 +50,8 @@ RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - 2>/dev/
     apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
         clang-${LLVM_VER} lldb-${LLVM_VER} lld-${LLVM_VER} clangd-${LLVM_VER} \
-        llvm-${LLVM_VER}-dev libclang-${LLVM_VER}-dev clang-tidy-${LLVM_VER}
+        llvm-${LLVM_VER}-dev libclang-${LLVM_VER}-dev clang-tidy-${LLVM_VER} \
+        clang-format-${LLVM_VER} libclang-rt-${LLVM_VER}-dev
 
 # Set the default clang-tidy, so CMake can find it
 RUN update-alternatives --install /usr/bin/clang-tidy clang-tidy $(which clang-tidy-${LLVM_VER}) 1
@@ -76,7 +77,7 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
 # Install optional dependecies
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        doxygen graphviz ccache cppcheck
+        doxygen graphviz ccache cppcheck python-is-python3
 
 # Install include-what-you-use
 ENV IWYU /home/iwyu
