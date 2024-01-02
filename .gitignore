@@ -11,6 +11,7 @@ CMakeUserPresets.json
 .vs/
 .idea/
 .vscode/
+.cache/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
