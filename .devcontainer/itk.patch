@@ -1,0 +1,25 @@
+diff --git a/CMake/UseITK.cmake b/CMake/UseITK.cmake
+index b0e0ef20..e4f15f82 100644
+--- a/CMake/UseITK.cmake
++++ b/CMake/UseITK.cmake
+@@ -24,7 +24,7 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ITK_REQUIRED_LINK_
+ set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ITK_REQUIRED_LINK_FLAGS}")
+ 
+ # Add include directories needed to use ITK.
+-include_directories(BEFORE ${ITK_INCLUDE_DIRS})
++include_directories(BEFORE SYSTEM ${ITK_INCLUDE_DIRS})
+ 
+ # Add link directories needed to use ITK.
+ link_directories(${ITK_LIBRARY_DIRS})
+diff --git a/Modules/Filtering/MathematicalMorphology/include/itkMathematicalMorphologyEnums.h b/Modules/Filtering/MathematicalMorphology/include/itkMathematicalMorphologyEnums.h
+index aebfc0e9..c5cd1647 100644
+--- a/Modules/Filtering/MathematicalMorphology/include/itkMathematicalMorphologyEnums.h
++++ b/Modules/Filtering/MathematicalMorphology/include/itkMathematicalMorphologyEnums.h
+@@ -19,6 +19,7 @@
+ #define itkMathematicalMorphologyEnums_h
+ 
+ #include <iostream>
++#include <cstdint>
+ #include "ITKMathematicalMorphologyExport.h"
+ 
+ 

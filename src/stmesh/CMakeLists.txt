@@ -7,7 +7,20 @@ add_library(stmesh stmesh.cpp)
 
 add_library(stmesh::stmesh ALIAS stmesh)
 
-target_link_libraries(stmesh PRIVATE stmesh_options stmesh_warnings)
+target_link_libraries(stmesh PRIVATE 
+  stmesh_options 
+  stmesh_warnings
+  ${VTK_LIBRARIES})
+
+target_link_libraries(stmesh PUBLIC 
+  CGAL::CGAL
+  Eigen
+  ${ITK_LIBRARIES})
+
+vtk_module_autoinit(
+  TARGETS stmesh
+  MODULES ${VTK_LIBRARIES}
+)
 
 target_include_directories(stmesh ${WARNING_GUARD} PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
                                                                   $<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/include>)

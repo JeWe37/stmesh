@@ -53,8 +53,9 @@ RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - 2>/dev/
         llvm-${LLVM_VER}-dev libclang-${LLVM_VER}-dev clang-tidy-${LLVM_VER} \
         clang-format-${LLVM_VER} libclang-rt-${LLVM_VER}-dev
 
-# Set the default clang-tidy, so CMake can find it
+# Set the default clang-tidy and clang-format, so CMake can find it
 RUN update-alternatives --install /usr/bin/clang-tidy clang-tidy $(which clang-tidy-${LLVM_VER}) 1
+RUN update-alternatives --install /usr/bin/clang-format clang-format $(which clang-format-${LLVM_VER}) 1
 
 # Set clang-${LLVM_VER} as default clang
 RUN update-alternatives --install /usr/bin/clang clang $(which clang-${LLVM_VER}) 100
@@ -92,6 +93,28 @@ RUN CC=clang-${LLVM_VER} CXX=clang++-${LLVM_VER} cmake -S ${IWYU_SRC} \
         -G "Unix Makefiles" -DCMAKE_PREFIX_PATH=/usr/lib/llvm-${LLVM_VER} && \
     cmake --build ${IWYU_BUILD} -j && \
     cmake --install ${IWYU_BUILD}
+
+# Add required libraries
+RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y --no-install-recommends \
+        libcgal-dev libvtk9-dev libfftw3-dev patch
+
+# Add ITK patch to fix compilation error
+COPY itk.patch /opt/itk.patch
+
+# Build own version of ITK with patch
+RUN git clone --depth 1 --branch v5.2.1 https://github.com/InsightSoftwareConsortium/ITK /opt/itk-src && \
+    cd /opt/itk-src && \
+    patch -p1 < /opt/itk.patch && \
+    mkdir /opt/itk-clang-build && \
+    cd /opt/itk-clang-build && \
+    CC=clang CXX=clang++ cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON /opt/itk-src && \
+    cmake --build . -j 16 && \
+    mkdir /opt/itk-gcc-build && \
+    cd /opt/itk-gcc-build && \
+    cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON /opt/itk-src && \
+    cmake --build . -j 16 && \
+    rm /opt/itk.patch
 
 # Per https://github.com/include-what-you-use/include-what-you-use#how-to-install:
 # `You need to copy the Clang include directory to the expected location before

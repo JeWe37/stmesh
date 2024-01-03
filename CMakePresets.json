@@ -39,6 +39,8 @@
             "description": "Target Unix-like OS with the gcc compiler, debug build type",
             "inherits": "conf-unixlike-common",
             "cacheVariables": {
+                "ITK_DIR": "/opt/itk-gcc-build",
+                "stmesh_ENABLE_CLANG_TIDY": "OFF",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_BUILD_TYPE": "Debug"
@@ -50,6 +52,8 @@
             "description": "Target Unix-like OS with the gcc compiler, release build type",
             "inherits": "conf-unixlike-common",
             "cacheVariables": {
+                "ITK_DIR": "/opt/itk-gcc-build",
+                "stmesh_ENABLE_CLANG_TIDY": "OFF",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"
@@ -61,6 +65,7 @@
             "description": "Target Unix-like OS with the clang compiler, debug build type",
             "inherits": "conf-unixlike-common",
             "cacheVariables": {
+                "ITK_DIR": "/opt/itk-clang-build",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_BUILD_TYPE": "Debug"
@@ -72,6 +77,7 @@
             "description": "Target Unix-like OS with the clang compiler, release build type",
             "inherits": "conf-unixlike-common",
             "cacheVariables": {
+                "ITK_DIR": "/opt/itk-clang-build",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo"

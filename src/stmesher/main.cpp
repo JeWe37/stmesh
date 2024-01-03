@@ -30,6 +30,9 @@ int main(int argc, const char **argv) {
     }
 
     constexpr int five = 5;
+    test();
+    test_itk();
+    test_vtk();
     return factorial(five);
   } catch (const std::exception &e) {
     spdlog::error("Unhandled exception in main: {}", e.what());
