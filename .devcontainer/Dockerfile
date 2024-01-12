@@ -109,11 +109,11 @@ RUN git clone --depth 1 --branch v5.2.1 https://github.com/InsightSoftwareConsor
     mkdir /opt/itk-clang-build && \
     cd /opt/itk-clang-build && \
     CC=clang CXX=clang++ cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON /opt/itk-src && \
-    cmake --build . -j 16 && \
+    cmake --build . -j $(nproc) && \
     mkdir /opt/itk-gcc-build && \
     cd /opt/itk-gcc-build && \
     cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON /opt/itk-src && \
-    cmake --build . -j 16 && \
+    cmake --build . -j $(nproc) && \
     rm /opt/itk.patch
 
 # Per https://github.com/include-what-you-use/include-what-you-use#how-to-install:
