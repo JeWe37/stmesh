@@ -158,6 +158,10 @@ template <typename ExtraData>
   return {{covertex, covertexIndex, full_cell}, std::tuple{neighbor_mirror_vertex, mirror_vertex, neighbor_full_cell}};
 }
 
+template <typename ExtraData> [[nodiscard]] size_t Triangulation<ExtraData>::vertexCount() const noexcept {
+  return triangulation_.number_of_vertices();
+}
+
 template <typename ExtraData>
 [[nodiscard]] auto Triangulation<ExtraData>::verticesInRadius(const Vector4F &point, FLOAT_T radius) const
     -> std::vector<VertexHandle> {

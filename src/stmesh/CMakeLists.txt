@@ -20,6 +20,7 @@ target_link_libraries(stmesh PUBLIC
   fmt::fmt
   CGAL::CGAL
   Eigen
+  spdlog::spdlog
   ${ITK_LIBRARIES}
   ${Boost_INCLUDE_DIRS}
   ${VTK_LIBRARIES})

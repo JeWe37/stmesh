@@ -15,6 +15,7 @@
 #include <CGAL/property_map.h>
 #include <Eigen/Geometry>
 #include <boost/heap/fibonacci_heap.hpp>
+#include <spdlog/spdlog.h>
 
 #include "meshing_cell.hpp"
 #include "stmesh/geometric_simplex.hpp"
@@ -191,8 +192,9 @@ public:
   template <typename F = void (*)(void)> void triangulate(const F &callback = [] {}) {
     const detail::Rules *rule = nullptr;
     while (std::visit([](const auto &r) { return r.index; }, *(rule = &queue_.top().rule)) != detail::Complete::index) {
-      std::cout << "Applying rule " << std::visit([](const auto &r) { return r.index; }, *rule) + 1 << '\n';
+      spdlog::info("Applying rule {}", std::visit([](const auto &r) { return r.index; }, *rule) + 1);
       std::visit([&](auto &r) { r.apply(*this, queue_.top().full_cell); }, *rule);
+      spdlog::info("Number of vertices: {}", triangulation_.vertexCount());
       callback();
     }
   }

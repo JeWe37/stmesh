@@ -109,6 +109,8 @@ public:
                            std::optional<std::tuple<VertexHandle, int, FullCellHandle>>>
   facetMirrorVertices(Facet facet) const noexcept;
 
+  [[nodiscard]] size_t vertexCount() const noexcept;
+
   [[nodiscard]] std::vector<VertexHandle> verticesInRadius(const Vector4F &point, FLOAT_T radius) const;
 
   [[nodiscard]] static GeometricSimplex<4> fullCellSimplex(FullCellConstHandle full_cell) noexcept;
