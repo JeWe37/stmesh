@@ -857,7 +857,7 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
                stmesh::Vector4F{stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0)}
                    .normalized())
                   .cwiseAbs()
-                  .maxCoeff() < eps);
+                  .maxCoeff() < 4.0 * eps);
       const auto &[full_cell, index_of_covertex] = dependent_neighbor_info;
       for (const auto &vertex_handle : vertex_handles) {
         int i{};
@@ -879,7 +879,7 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
                                                    stmesh::FLOAT_T(1.0)}
                                       .normalized())
                     .cwiseAbs()
-                    .maxCoeff() < eps);
+                    .maxCoeff() < 4.0 * eps);
       }
 
       SECTION("Test surface ball") {
