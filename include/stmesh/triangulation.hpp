@@ -7,10 +7,12 @@
 
 #include <CGAL/Delaunay_triangulation.h>
 #include <CGAL/Epick_d.h>
-#include <CGAL/Fuzzy_sphere.h>
-#include <CGAL/Kd_tree.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/index/rtree.hpp>
 
 #include "geometric_simplex.hpp"
 #include "utility.hpp"
@@ -72,17 +74,27 @@ public:
   using Face = DelaunayTriangulation::Face;
   using LocateType = DelaunayTriangulation::Locate_type;
 
+  using BGPoint = bg::model::point<FLOAT_T, 4, bg::cs::cartesian>;
+  using BGBox = bg::model::box<BGPoint>;
+
 private:
   DelaunayTriangulation triangulation_;
 
-  using Tree = CGAL::Kd_tree<Kernel>;
-  using FuzzySphere = CGAL::Fuzzy_sphere<Kernel>;
+  using Tree = bg::index::rtree<BGPoint,
+                                // NOLINTNEXTLINE(*-magic-numbers)
+                                bg::index::rstar<16>>;
 
   Tree tree_;
 
   std::unordered_map<Vector4F, VertexHandle, Vector4FHash> vertex_handle_map;
 
 public:
+  [[nodiscard]] static BGPoint pointFromVector(const Vector4F &vector) noexcept;
+
+  [[nodiscard]] static Vector4F vectorFromPoint(const BGPoint &point) noexcept;
+
+  [[nodiscard]] static BGBox boxFromAABB(const Eigen::AlignedBox<FLOAT_T, 4> &aabb) noexcept;
+
   [[nodiscard]] static Vector4F pointToVec(const Point &pt);
 
   explicit Triangulation(const Eigen::AlignedBox<FLOAT_T, 4> &bounding_box);
