@@ -53,9 +53,10 @@ RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - 2>/dev/
         llvm-${LLVM_VER}-dev libclang-${LLVM_VER}-dev clang-tidy-${LLVM_VER} \
         clang-format-${LLVM_VER} libclang-rt-${LLVM_VER}-dev
 
-# Set the default clang-tidy and clang-format, so CMake can find it
+# Set the default clang-tidy, clang-format and clangd, so CMake/VSCode can find it
 RUN update-alternatives --install /usr/bin/clang-tidy clang-tidy $(which clang-tidy-${LLVM_VER}) 1
 RUN update-alternatives --install /usr/bin/clang-format clang-format $(which clang-format-${LLVM_VER}) 1
+RUN update-alternatives --install /usr/bin/clangd clangd $(which clangd-${LLVM_VER}) 1
 
 # Set clang-${LLVM_VER} as default clang
 RUN update-alternatives --install /usr/bin/clang clang $(which clang-${LLVM_VER}) 100
@@ -119,11 +120,11 @@ RUN git clone --depth 1 --branch v5.2.1 https://github.com/InsightSoftwareConsor
     patch -p1 < /opt/itk.patch && \
     mkdir /opt/itk-clang-build && \
     cd /opt/itk-clang-build && \
-    CC=clang CXX=clang++ cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON /opt/itk-src && \
+    CC=clang CXX=clang++ cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON -DITKGroup_IO:BOOL=ON -DModule_ITKCommon:BOOL=ON -DITK_USE_SYSTEM_EIGEN:BOOL=ON /opt/itk-src && \
     cmake --build . -j $(nproc) && \
     mkdir /opt/itk-gcc-build && \
     cd /opt/itk-gcc-build && \
-    cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON /opt/itk-src && \
+    cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON -DITKGroup_IO:BOOL=ON -DModule_ITKCommon:BOOL=ON -DITK_USE_SYSTEM_EIGEN:BOOL=ON /opt/itk-src && \
     cmake --build . -j $(nproc) && \
     rm /opt/itk.patch
 

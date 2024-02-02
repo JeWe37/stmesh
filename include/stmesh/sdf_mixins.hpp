@@ -11,7 +11,7 @@
 
 namespace stmesh {
 template <typename T, unsigned D> class CentralDifferenceNormalMixin {
-  static inline constexpr FLOAT_T eps = sqrt(std::numeric_limits<FLOAT_T>::epsilon());
+  static inline constexpr FLOAT_T kEps = sqrt(std::numeric_limits<FLOAT_T>::epsilon());
 
 public:
   [[nodiscard]] VectorF<D> normal(const VectorF<D> &point) const noexcept {
@@ -19,7 +19,7 @@ public:
     VectorF<D> normal;
     VectorF<D> delta = VectorF<D>::Zero();
     for (int i = 0; i < static_cast<int>(D); ++i) {
-      delta[i] = eps;
+      delta[i] = kEps;
       normal[i] = self.signedDistance(point + delta) - self.signedDistance(point - delta);
       delta[i] = 0;
     }

@@ -22,9 +22,9 @@ template struct MatrixHash<FLOAT_T, 3, 1>;
 template <int D>
 [[nodiscard]] std::array<VectorF<static_cast<unsigned>(D)>, 1U << static_cast<unsigned>(D)>
 allCorners(const Eigen::AlignedBox<FLOAT_T, D> &box) {
-  constexpr unsigned N = 1U << static_cast<unsigned>(D);
-  std::array<VectorF<static_cast<unsigned>(D)>, N> result;
-  for (size_t i = 0; i < N; ++i) {
+  constexpr unsigned kN = 1U << static_cast<unsigned>(D);
+  std::array<VectorF<static_cast<unsigned>(D)>, kN> result;
+  for (size_t i = 0; i < kN; ++i) {
     for (unsigned j = 0; j < D; ++j)
       result.at(i)[j] = (i & (1U << j)) ? box.max()[j] : box.min()[j];
   }

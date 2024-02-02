@@ -86,7 +86,7 @@ private:
 
   Tree tree_;
 
-  std::unordered_map<Vector4F, VertexHandle, Vector4FHash> vertex_handle_map;
+  std::unordered_map<Vector4F, VertexHandle, Vector4FHash> vertex_handle_map_;
 
 public:
   [[nodiscard]] static BGPoint pointFromVector(const Vector4F &vector) noexcept;

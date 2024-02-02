@@ -25,12 +25,22 @@ concept SurfaceAdapter = requires(const T t, HyperSphere<D> sphere, VectorF<D> v
 template <typename T>
 concept SurfaceAdapter4 = SurfaceAdapter<T, 4>;
 
-template <ExactSDF T> class SDFSurfaceAdapter {
+template <typename T, unsigned D> class LineRaycastMixin {
 public:
-  using surface_t = T;
-  static inline constexpr unsigned dimension = T::dimension;
+  [[nodiscard]] std::optional<VectorF<D>> raycast(const Eigen::ParametrizedLine<FLOAT_T, static_cast<int>(D)> &ray,
+                                                  FLOAT_T max_distance) const noexcept {
+    return static_cast<const T *>(this)->raycast(ray.origin(), ray.direction(), max_distance);
+  }
+};
+
+template <ExactSDF T> class SDFSurfaceAdapter : public LineRaycastMixin<SDFSurfaceAdapter<T>, T::kDimension> {
+  using Base = LineRaycastMixin<SDFSurfaceAdapter<T>, T::kDimension>;
+
+public:
+  using Surface = T;
+  static inline constexpr unsigned kDimension = T::kDimension;
   // TODO: make this variable
-  constexpr static inline FLOAT_T dt = static_cast<FLOAT_T>(1e-3);
+  constexpr static inline FLOAT_T kDt = static_cast<FLOAT_T>(1e-3);
 
 private:
   T surface_;
@@ -38,40 +48,37 @@ private:
 public:
   template <typename... Args> explicit SDFSurfaceAdapter(Args &&...args) : surface_(std::forward<Args>(args)...) {}
 
-  [[nodiscard]] VectorF<dimension> closestPoint(const VectorF<dimension> &point) const noexcept {
+  [[nodiscard]] VectorF<kDimension> closestPoint(const VectorF<kDimension> &point) const noexcept {
     return point - surface_.signedDistance(point) * surface_.normal(point);
   }
 
-  [[nodiscard]] bool intersectedBySphere(const HyperSphere<dimension> &sphere) const noexcept {
-    return sphere.radius() - surface_.distance(sphere.center()) > dt;
+  [[nodiscard]] bool intersectedBySphere(const HyperSphere<kDimension> &sphere) const noexcept {
+    return sphere.radius() - surface_.distance(sphere.center()) > kDt;
   }
 
-  [[nodiscard]] Eigen::AlignedBox<FLOAT_T, static_cast<int>(dimension)> boundingBox() const noexcept {
+  [[nodiscard]] Eigen::AlignedBox<FLOAT_T, static_cast<int>(kDimension)> boundingBox() const noexcept {
     return surface_.boundingBox();
   }
 
-  [[nodiscard]] bool inside(const VectorF<dimension> &point) const noexcept {
+  [[nodiscard]] bool inside(const VectorF<kDimension> &point) const noexcept {
     return surface_.signedDistance(point) < 0;
   }
 
-  [[nodiscard]] std::optional<VectorF<dimension>>
-  raycast(const VectorF<dimension> &start, const VectorF<dimension> &direction, FLOAT_T max_distance) const noexcept {
+  [[nodiscard]] std::optional<VectorF<kDimension>>
+  raycast(const VectorF<kDimension> &start, const VectorF<kDimension> &direction, FLOAT_T max_distance) const noexcept {
     FLOAT_T total_distance = 0;
     while (total_distance < max_distance) {
-      VectorF<dimension> point = start + total_distance * direction;
+      VectorF<kDimension> point = start + total_distance * direction;
       FLOAT_T distance = surface_.distance(point);
-      if (distance < dt)
+      if (distance < kDt)
         return point;
       total_distance += distance;
     }
     return std::nullopt;
   }
 
-  [[nodiscard]] std::optional<VectorF<dimension>>
-  raycast(const Eigen::ParametrizedLine<FLOAT_T, static_cast<int>(dimension)> &ray,
-          FLOAT_T max_distance) const noexcept {
-    return raycast(ray.origin(), ray.direction(), max_distance);
-  }
+  using Base::raycast;
 };
+
 } // namespace stmesh
 #endif

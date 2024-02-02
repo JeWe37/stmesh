@@ -18,13 +18,13 @@ concept SignedDistanceField = requires(T t, VectorF<D> vec) {
 };
 
 template <typename T>
-requires SignedDistanceField<T, T::dimension>
+requires SignedDistanceField<T, T::kDimension>
 struct ExactSDFTag {
-  static constexpr bool value = false;
+  static constexpr bool kValue = false;
 };
 
 template <typename T>
-concept ExactSDF = requires { ExactSDFTag<T>::value; };
+concept ExactSDF = requires { ExactSDFTag<T>::kValue; };
 
 template <unsigned D>
 class HyperSphere : public stmesh::DistanceMixin<HyperSphere<D>, D>, public SamplingMixin<HyperSphere<D>, D> {
@@ -32,7 +32,7 @@ class HyperSphere : public stmesh::DistanceMixin<HyperSphere<D>, D>, public Samp
   VectorF<D> center_;
 
 public:
-  static inline constexpr unsigned dimension = D;
+  static inline constexpr unsigned kDimension = D;
 
   HyperSphere(FLOAT_T radius, const VectorF<D> &center) noexcept;
 
@@ -53,7 +53,7 @@ public:
 };
 
 template <unsigned D> struct ExactSDFTag<HyperSphere<D>> {
-  static constexpr bool value = true;
+  static constexpr bool kValue = true;
 };
 
 using HyperSphere3 = HyperSphere<3>;
@@ -65,7 +65,7 @@ class HyperCube : public stmesh::DistanceMixin<HyperCube<D>, D>, public CentralD
   VectorF<D> max_;
 
 public:
-  static inline constexpr unsigned dimension = D;
+  static inline constexpr unsigned kDimension = D;
 
   HyperCube(const VectorF<D> &min, const VectorF<D> &max) noexcept;
 
@@ -75,7 +75,7 @@ public:
 };
 
 template <unsigned D> struct ExactSDFTag<HyperCube<D>> {
-  static constexpr bool value = true;
+  static constexpr bool kValue = true;
 };
 
 using HyperCube4 = HyperCube<4>;

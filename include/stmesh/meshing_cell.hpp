@@ -48,7 +48,7 @@ struct Rule {
 };
 
 struct Rule1 : Rule {
-  static constexpr inline int index = 0;
+  static constexpr inline int kIndex = 0;
 
   template <typename MeshingAlgorithm>
   unsigned check(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell, bool dry_run = false) {
@@ -106,7 +106,7 @@ struct Rule1 : Rule {
 };
 
 struct Rule2 : Rule {
-  static constexpr inline int index = 1;
+  static constexpr inline int kIndex = 1;
   Vector4F z;
   bool z_outside;
 
@@ -136,7 +136,7 @@ struct Rule2 : Rule {
 };
 
 struct Rule3 : Rule {
-  static constexpr inline int index = 2;
+  static constexpr inline int kIndex = 2;
   Vector4F z;
 
   template <typename MeshingAlgorithm>
@@ -156,7 +156,7 @@ struct Rule3 : Rule {
 };
 
 struct Rule4 : Rule {
-  static constexpr inline int index = 3;
+  static constexpr inline int kIndex = 3;
   // NOLINTNEXTLINE(*-magic-numbers)
   Eigen::Matrix<FLOAT_T, 4, 5> vertices;
   unsigned prio;
@@ -185,7 +185,7 @@ struct Rule4 : Rule {
 };
 
 struct Rule5 : Rule {
-  static constexpr inline int index = 4;
+  static constexpr inline int kIndex = 4;
   Eigen::Matrix<FLOAT_T, 4, 4> vertices;
 
   template <typename MeshingAlgorithm>
@@ -253,7 +253,7 @@ struct Rule5 : Rule {
 };
 
 struct Complete : Rule {
-  static constexpr inline int index = 5;
+  static constexpr inline int kIndex = 5;
 
   template <typename MeshingAlgorithm>
   static unsigned check(const MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell,
@@ -278,8 +278,8 @@ struct Cell {
   Triangulation::FullCellHandle full_cell;
 
   friend auto operator<=>(const Cell &lhs, const Cell &rhs) noexcept {
-    int lhsindex = std::visit([](const auto &r) { return r.index; }, lhs.rule);
-    int rhsindex = std::visit([](const auto &r) { return r.index; }, rhs.rule);
+    int lhsindex = std::visit([](const auto &r) { return r.kIndex; }, lhs.rule);
+    int rhsindex = std::visit([](const auto &r) { return r.kIndex; }, rhs.rule);
     // max heap => reverse order, lower rule index, higher priority
     if (std::strong_ordering cmp = rhsindex <=> lhsindex; cmp != std::strong_ordering::equal)
       return cmp;
