@@ -51,6 +51,7 @@ int main(int argc, const char **argv) {
     // NOLINTNEXTLINE(*-magic-numbers)
     stmesh::writeVTU("output", "test_{}.vtu", stmesh::FLOAT_T(0.5), sdf_surface_adapter,
                      meshing_algorithm.triangulation());
+    stmesh::writeStatistics("statistics.csv", sdf_surface_adapter, meshing_algorithm.triangulation());
     return EXIT_SUCCESS;
   } catch (const std::exception &e) {
     spdlog::error("Unhandled exception in main: {}", e.what());

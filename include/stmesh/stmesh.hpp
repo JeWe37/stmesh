@@ -6,6 +6,7 @@
 #include "meshing_algorithm.hpp"
 #include "sdf.hpp"
 #include "sdf_mixins.hpp"
+#include "statistics_collector.hpp"
 #include "surface_adapters.hpp"
 #include "triangulation.hpp"
 #include "utility.hpp"
