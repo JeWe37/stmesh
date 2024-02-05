@@ -1,5 +1,5 @@
 diff --git a/CMake/UseITK.cmake b/CMake/UseITK.cmake
-index b0e0ef20..e4f15f82 100644
+index b0e0ef20d5..e4f15f82a9 100644
 --- a/CMake/UseITK.cmake
 +++ b/CMake/UseITK.cmake
 @@ -24,7 +24,7 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ITK_REQUIRED_LINK_
@@ -11,8 +11,47 @@ index b0e0ef20..e4f15f82 100644
  
  # Add link directories needed to use ITK.
  link_directories(${ITK_LIBRARY_DIRS})
+diff --git a/Modules/Core/Common/include/itkConstNeighborhoodIterator.h b/Modules/Core/Common/include/itkConstNeighborhoodIterator.h
+index 2f5edbf387..c142090eb0 100644
+--- a/Modules/Core/Common/include/itkConstNeighborhoodIterator.h
++++ b/Modules/Core/Common/include/itkConstNeighborhoodIterator.h
+@@ -458,7 +458,7 @@ public:
+ 
+   /** Distance between two iterators */
+   OffsetType
+-  operator-(const Self & b)
++  operator-(const Self & b) const
+   {
+     return m_Loop - b.m_Loop;
+   }
+diff --git a/Modules/Core/Common/include/itkConstNeighborhoodIteratorWithOnlyIndex.h b/Modules/Core/Common/include/itkConstNeighborhoodIteratorWithOnlyIndex.h
+index 4ec1344bb6..691974a02d 100644
+--- a/Modules/Core/Common/include/itkConstNeighborhoodIteratorWithOnlyIndex.h
++++ b/Modules/Core/Common/include/itkConstNeighborhoodIteratorWithOnlyIndex.h
+@@ -295,7 +295,7 @@ public:
+ 
+   /** Distance between two iterators */
+   OffsetType
+-  operator-(const Self & b)
++  operator-(const Self & b) const
+   {
+     return m_Loop - b.m_Loop;
+   }
+diff --git a/Modules/Core/Common/include/itkOffset.h b/Modules/Core/Common/include/itkOffset.h
+index ea8fb3eb6c..02f11332b8 100644
+--- a/Modules/Core/Common/include/itkOffset.h
++++ b/Modules/Core/Common/include/itkOffset.h
+@@ -137,7 +137,7 @@ public:
+ 
+   /** Subtract two offsets. */
+   const Self
+-  operator-(const Self & vec)
++  operator-(const Self & vec) const
+   {
+     Self result;
+ 
 diff --git a/Modules/Filtering/MathematicalMorphology/include/itkMathematicalMorphologyEnums.h b/Modules/Filtering/MathematicalMorphology/include/itkMathematicalMorphologyEnums.h
-index aebfc0e9..c5cd1647 100644
+index aebfc0e9a6..c5cd164788 100644
 --- a/Modules/Filtering/MathematicalMorphology/include/itkMathematicalMorphologyEnums.h
 +++ b/Modules/Filtering/MathematicalMorphology/include/itkMathematicalMorphologyEnums.h
 @@ -19,6 +19,7 @@

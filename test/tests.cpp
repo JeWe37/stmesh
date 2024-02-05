@@ -1,4 +1,5 @@
 // NOLINTBEGIN(*-magic-numbers,misc-include-cleaner,readability-function-cognitive-complexity)
+#include "stmesh/edt.hpp"
 #include "stmesh/geometric_simplex.hpp"
 #include "stmesh/meshing_algorithm.hpp"
 #include "stmesh/meshing_cell.hpp"
@@ -9,6 +10,7 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polyhedron_3.h>
 #include <Eigen/src/Geometry/Hyperplane.h>
+#include <Eigen/src/Geometry/ParametrizedLine.h>
 #include <algorithm>
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -335,6 +337,29 @@ TEST_CASE("Test hypercube functionality in 4D", "[hypercube][sdf]") {
   }
 }
 
+TEST_CASE("Test euclidean distance transform with sphere", "[sphere_edt][edt]") {
+  const stmesh::EDTReader<4> reader("data/sphere.mha");
+  REQUIRE(reader.boundingBox().min() == stmesh::Vector4F::Ones() * stmesh::FLOAT_T(2.0));
+  REQUIRE(reader.boundingBox().max() == stmesh::Vector4F::Ones() * stmesh::FLOAT_T(42.0));
+  REQUIRE(reader.signedDistanceAt(
+              {stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0)}) -
+              stmesh::FLOAT_T(20.0) <
+          stmesh::FLOAT_T(std::sqrt(2.0)));
+  REQUIRE(reader.signedDistanceAt(
+              {stmesh::FLOAT_T(12.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0)}) -
+              stmesh::FLOAT_T(10.0) <
+          stmesh::FLOAT_T(std::sqrt(2.0)));
+  REQUIRE(reader.signedDistanceAt(
+              {stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0)}) -
+              stmesh::FLOAT_T(-20.0) <
+          stmesh::FLOAT_T(std::sqrt(2.0)));
+  REQUIRE(reader.closestAt({stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0)}) ==
+          stmesh::Vector4F{stmesh::FLOAT_T(12.5), stmesh::FLOAT_T(12.5), stmesh::FLOAT_T(12.5), stmesh::FLOAT_T(13.5)});
+  REQUIRE(
+      reader.closestAt({stmesh::FLOAT_T(12.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0)}) ==
+      stmesh::Vector4F{stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)});
+}
+
 TEST_CASE("Test sdf adapter with sphere sdf", "[sdf_adapter][surface_adapter]") {
   const auto radius = stmesh::FLOAT_T(1.0);
   const stmesh::Vector3F center{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0)};
@@ -388,6 +413,89 @@ TEST_CASE("Test sdf adapter with sphere sdf", "[sdf_adapter][surface_adapter]") 
     const stmesh::Vector3F point3{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0)};
     REQUIRE(*adapter.raycast(point3, direction3, max_distance) ==
             stmesh::Vector3F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0)});
+    // NOLINTEND(bugprone-unchecked-optional-access)
+  }
+}
+
+TEST_CASE("Test edt adapter with sphere edt", "[edt_adapter][surface_adapter]") {
+  const stmesh::EDTSurfaceAdapter<4, stmesh::EDTReader<4>> adapter("data/sphere.mha");
+  {
+    INFO("Correctly constructed");
+    REQUIRE(adapter.boundingBox().min() ==
+            stmesh::Vector4F{stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0)});
+    REQUIRE(adapter.boundingBox().max() == stmesh::Vector4F{stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(42.0),
+                                                            stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(42.0)});
+  }
+  {
+    INFO("Correctly computes closest point");
+    REQUIRE(
+        adapter.closestPoint(
+            {stmesh::FLOAT_T(12.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)}) ==
+        stmesh::Vector4F{stmesh::FLOAT_T(3.0), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)});
+    REQUIRE(
+        adapter.closestPoint(
+            {stmesh::FLOAT_T(1.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)}) ==
+        stmesh::Vector4F{stmesh::FLOAT_T(3.0), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)});
+    REQUIRE(
+        adapter.closestPoint(
+            {stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)}) ==
+        stmesh::Vector4F{stmesh::FLOAT_T(3.0), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)});
+    REQUIRE((adapter.closestPoint(stmesh::Vector4F::Constant(18.0)) -
+             stmesh::Vector4F::Constant(stmesh::FLOAT_T(13.5 - std::pow(0.5, 0.25))))
+                .cwiseAbs()
+                .maxCoeff() < std::sqrt(kEps));
+  }
+  {
+    INFO("Correctly determines if inside");
+    REQUIRE(
+        adapter.inside({stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)}));
+    REQUIRE(
+        adapter.inside({stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(3.01)}));
+    REQUIRE_FALSE(
+        adapter.inside({stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(2.99)}));
+    REQUIRE_FALSE(
+        adapter.inside({stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(1.5)}));
+    REQUIRE_FALSE(
+        adapter.inside({stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(43.0), stmesh::FLOAT_T(22.5)}));
+  }
+  {
+    INFO("Correctly checks sphere intersection");
+    const auto radius2 = stmesh::FLOAT_T(5.0);
+    const stmesh::Vector4F center2{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5),
+                                   stmesh::FLOAT_T(6.5)};
+    const stmesh::HyperSphere4 sphere2{radius2, center2};
+    REQUIRE(adapter.intersectedBySphere(sphere2));
+    const auto radius3 = stmesh::FLOAT_T(5.0);
+    const stmesh::Vector4F center3{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5),
+                                   stmesh::FLOAT_T(22.5)};
+    const stmesh::HyperSphere4 sphere3{radius3, center3};
+    REQUIRE_FALSE(adapter.intersectedBySphere(sphere3));
+  }
+  {
+    INFO("Correctly computes raycast");
+    const auto max_distance = stmesh::FLOAT_T(100.0);
+    const stmesh::Vector4F direction1{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0),
+                                      stmesh::FLOAT_T(1.0)};
+    const stmesh::Vector4F point1{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5),
+                                  stmesh::FLOAT_T(22.5)};
+    // NOLINTBEGIN(bugprone-unchecked-optional-access)
+    REQUIRE(
+        *adapter.raycast(point1, direction1, max_distance) ==
+        stmesh::Vector4F{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(42.0)});
+    const stmesh::Vector4F direction2{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0),
+                                      stmesh::FLOAT_T(-1.0)};
+    const stmesh::Vector4F point2{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5),
+                                  stmesh::FLOAT_T(22.5)};
+    REQUIRE(
+        *adapter.raycast(point2, direction2, max_distance) ==
+        stmesh::Vector4F{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(3.0)});
+    const stmesh::Vector4F point3{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5),
+                                  stmesh::FLOAT_T(22.5)};
+    const stmesh::Vector4F direction3{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0),
+                                      stmesh::FLOAT_T(0.0)};
+    REQUIRE(
+        *adapter.raycast(point3, direction3, max_distance) ==
+        stmesh::Vector4F{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(22.5)});
     // NOLINTEND(bugprone-unchecked-optional-access)
   }
 }
