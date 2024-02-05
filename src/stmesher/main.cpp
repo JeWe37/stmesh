@@ -1,11 +1,15 @@
 #include <cstdlib>
 #include <exception>
+#include <filesystem>
 #include <iterator>
+#include <optional>
+#include <string>
 
 #include <CLI/App.hpp>
 // NOLINTNEXTLINE(misc-include-cleaner)
 #include <CLI/CLI.hpp>
 #include <fmt/core.h>
+#include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
 #include <stmesh/stmesh.hpp>
@@ -17,13 +21,33 @@
 
 // NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, const char **argv) {
+  spdlog::cfg::load_env_levels();
   try {
     // NOLINTNEXTLINE(misc-const-correctness)
     CLI::App app{fmt::format("{} version {}", stmesh::cmake::project_name, stmesh::cmake::project_version)};
 
-    // NOLINTNEXTLINE(misc-const-correctness)
+    // NOLINTBEGIN(misc-const-correctness)
     bool show_version = false;
     app.add_flag("--version", show_version, "Show version information");
+
+    std::optional<std::filesystem::path> stats_output_file;
+    app.add_flag("--statistics-output", stats_output_file, "Write statistics to a file");
+
+    std::optional<std::filesystem::path> vtk_output_dir;
+    app.add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to");
+
+    std::string vtk_output_name_format = "mesh_{}.vtu";
+    app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk output files");
+
+    // NOLINTNEXTLINE(*-magic-numbers)
+    auto vtk_output_dt = stmesh::FLOAT_T(0.5);
+    app.add_option("--vtk-output-dt", vtk_output_dt, "Time step for vtk output");
+
+    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+    std::optional<unsigned> seed;
+    app.add_option("--seed", seed, "Seed for random number generation");
+
+    // NOLINTEND(misc-const-correctness)
     CLI11_PARSE(app, argc, argv);
 
     if (show_version) {
@@ -34,24 +58,26 @@ int main(int argc, const char **argv) {
     const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
         stmesh::FLOAT_T(30.0),
         stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(30.0)});
-    // NOLINTBEGIN(*-magic-numbers,misc-const-correctness)
-    stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(0.0005),
-                                               stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(5.0));
-    // NOLINTEND(*-magic-numbers,misc-const-correctness)
-    // meshing_algorithm.triangulate([&] {
-    //  // NOLINTNEXTLINE(*-magic-numbers)
-    //  if (meshing_algorithm.triangulation().vertexCount() == 3500)
-    //    // NOLINTNEXTLINE(concurrency-mt-unsafe)
-    //    exit(EXIT_FAILURE);
-    //});
-    meshing_algorithm.triangulate();
-    fmt::print("Meshing complete! Number of elements: {}\n",
-               std::distance(meshing_algorithm.triangulation().begin(), meshing_algorithm.triangulation().end()));
 
-    // NOLINTNEXTLINE(*-magic-numbers)
-    stmesh::writeVTU("output", "test_{}.vtu", stmesh::FLOAT_T(0.5), sdf_surface_adapter,
-                     meshing_algorithm.triangulation());
-    stmesh::writeStatistics("statistics.csv", sdf_surface_adapter, meshing_algorithm.triangulation());
+    // NOLINTBEGIN(*-magic-numbers,misc-const-correctness)
+    stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(0.0013),
+                                               stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(5.0), seed);
+    // NOLINTEND(*-magic-numbers,misc-const-correctness)
+    meshing_algorithm.triangulate();
+
+    spdlog::info("Meshing complete! Number of elements: {}",
+                 std::distance(meshing_algorithm.triangulation().begin(), meshing_algorithm.triangulation().end()));
+
+    if (vtk_output_dir) {
+      spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
+      stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, sdf_surface_adapter,
+                       meshing_algorithm.triangulation());
+    }
+    if (stats_output_file) {
+      spdlog::info("Writing statistics to {}...", stats_output_file->string());
+      stmesh::writeStatistics(*stats_output_file, sdf_surface_adapter, meshing_algorithm.triangulation());
+    }
+    spdlog::info("Done!");
     return EXIT_SUCCESS;
   } catch (const std::exception &e) {
     spdlog::error("Unhandled exception in main: {}", e.what());
