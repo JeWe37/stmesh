@@ -39,9 +39,25 @@ int main(int argc, const char **argv) {
     std::string vtk_output_name_format = "mesh_{}.vtu";
     app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk output files");
 
-    // NOLINTNEXTLINE(*-magic-numbers)
+    // NOLINTBEGIN(*-magic-numbers)
     auto vtk_output_dt = stmesh::FLOAT_T(0.5);
     app.add_option("--vtk-output-dt", vtk_output_dt, "Time step for vtk output");
+
+    auto rho_bar = stmesh::FLOAT_T(20.0);
+    app.add_option("--rho-bar", rho_bar, "Rho bar for meshing algorithm");
+
+    auto tau_bar = stmesh::FLOAT_T(0.0013);
+    app.add_option("--tau-bar", tau_bar, "Tau bar for meshing algorithm");
+
+    auto zeta = stmesh::FLOAT_T(0.5);
+    app.add_option("--zeta", zeta, "Zeta for meshing algorithm");
+
+    auto b = stmesh::FLOAT_T(5.0);
+    app.add_option("--b", b, "b for meshing algorithm");
+
+    auto delta = stmesh::FLOAT_T(5.0);
+    app.add_option("--delta", delta, "delta for meshing algorithm");
+    // NOLINTEND(*-magic-numbers)
 
     // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     std::optional<unsigned> seed;
@@ -59,10 +75,8 @@ int main(int argc, const char **argv) {
         stmesh::FLOAT_T(30.0),
         stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(30.0)});
 
-    // NOLINTBEGIN(*-magic-numbers,misc-const-correctness)
-    stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(0.0013),
-                                               stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(5.0), seed);
-    // NOLINTEND(*-magic-numbers,misc-const-correctness)
+    // NOLINTNEXTLINE(misc-const-correctness)
+    stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, rho_bar, tau_bar, zeta, b, delta, seed);
     meshing_algorithm.triangulate();
 
     spdlog::info("Meshing complete! Number of elements: {}",
