@@ -185,13 +185,13 @@ public:
                               detail::Complete>(full_cell, {});
   }
 
-  template <typename F = void (*)(void)> void triangulate(const F &callback = [] {}) {
+  template <typename F = void (*)()> void triangulate(const F &callback = [] {}) {
     const detail::Rules *rule = nullptr;
     while (std::visit([](const auto &r) { return r.kIndex; }, *(rule = &queue_.top().rule)) !=
            detail::Complete::kIndex) {
-      spdlog::info("Applying rule {}", std::visit([](const auto &r) { return r.kIndex; }, *rule) + 1);
+      spdlog::debug("Applying rule {}", std::visit([](const auto &r) { return r.kIndex; }, *rule) + 1);
       std::visit([&](auto &r) { r.apply(*this, queue_.top().full_cell); }, *rule);
-      spdlog::info("Number of vertices: {}", triangulation_.vertexCount());
+      spdlog::debug("Number of vertices: {}", triangulation_.vertexCount());
       callback();
     }
   }
