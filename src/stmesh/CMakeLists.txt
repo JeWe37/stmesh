@@ -8,6 +8,7 @@ add_library(stmesh
   utility.cpp
   vtk_writer.cpp
   edt.cpp
+  boundary_region_manager.cpp
 )
 
 
