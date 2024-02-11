@@ -58,6 +58,7 @@
                 "ITK_DIR": "/opt/itk-gcc-build",
                 "stmesh_ENABLE_CLANG_TIDY": "OFF",
                 "stmesh_ENABLE_SANITIZER_UNDEFINED": "OFF",
+                "stmesh_ENABLE_SANITIZER_ADDRESS": "OFF",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
@@ -88,6 +89,8 @@
                 "ITK_DIR": "/opt/itk-clang-build",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
+                "stmesh_ENABLE_SANITIZER_UNDEFINED": "OFF",
+                "stmesh_ENABLE_SANITIZER_ADDRESS": "OFF",
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "BUILD_TESTING": "ON",
                 "stmesh_ENABLE_USER_LINKER": "ON"
