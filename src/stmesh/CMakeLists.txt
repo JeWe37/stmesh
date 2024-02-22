@@ -9,9 +9,16 @@ add_library(stmesh
   vtk_writer.cpp
   edt.cpp
   boundary_region_manager.cpp
+  marching_hypercubes.cpp
+  ${CMAKE_BINARY_DIR}/src/generator/table.cpp
 )
 
+add_dependencies(stmesh RunGenerator)
 
+set_source_files_properties(
+  ${CMAKE_BINARY_DIR}/src/generator/table.cpp
+  PROPERTIES SKIP_LINTING ON
+)
 
 add_library(stmesh::stmesh ALIAS stmesh)
 

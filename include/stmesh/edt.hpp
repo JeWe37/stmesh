@@ -1,7 +1,9 @@
 #ifndef STMESH_EDT_READER_HPP
 #define STMESH_EDT_READER_HPP
 
+#include <array>
 #include <concepts> // IWYU pragma: keep
+#include <cstddef>
 #include <string>
 #include <vector>
 

@@ -1,6 +1,7 @@
 #ifndef STMESH_BOUNDARY_REGION_MANAGER_HPP
 #define STMESH_BOUNDARY_REGION_MANAGER_HPP
 
+#include <cstddef>
 #include <vector>
 
 #include "sdf.hpp"

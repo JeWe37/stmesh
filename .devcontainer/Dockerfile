@@ -13,9 +13,12 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
         make ninja-build git \
         python3 python3-pip
 
+COPY requirements.txt /requirements.txt
+
 # Install conan and pre-commit
 RUN python3 -m pip install --upgrade pip setuptools && \
     python3 -m pip install conan pre-commit && \
+    python3 -m pip install -r /requirements.txt && \
     conan --version
 
 # By default, anything you run in Docker is done as superuser.
