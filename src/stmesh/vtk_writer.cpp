@@ -1,6 +1,12 @@
-// NOLINTBEGIN(misc-include-cleaner)
+#include "stmesh/vtk_writer.hpp"
+
+#include <cstddef>
+
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <stmesh/vtk_writer.hpp>
+#include <CGAL/Polyhedron_3.h>
+#include <vtkType.h>
+
+#include "stmesh/utility.hpp"
 
 namespace stmesh::detail {
 [[nodiscard]] vtkIdType PointStorage::insert(const Vector3F &point) noexcept {
@@ -21,5 +27,3 @@ PolyhedraStorage::PolyhedraStorage(
   }
 }
 } // namespace stmesh::detail
-
-// NOLINTEND(misc-include-cleaner)

@@ -1,18 +1,19 @@
-// NOLINTBEGIN(misc-include-cleaner)
-#include <stmesh/utility.hpp>
+#include "stmesh/utility.hpp"
 
+#include <array>
+#include <cstddef>
 #include <functional>
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 
 namespace stmesh {
 template <typename Scalar, int Rows, int Cols>
 size_t MatrixHash<Scalar, Rows, Cols>::operator()(const Eigen::Matrix<Scalar, Rows, Cols> &matrix) const {
   size_t seed = 0;
-  for (Eigen::Index i = 0; i < matrix.size(); ++i) {
-    // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    Scalar elem = matrix.data()[i];
+  for (const Scalar &elem : matrix)
     // NOLINTNEXTLINE(*-magic-numbers)
     seed ^= std::hash<Scalar>()(elem) + 0x9e3779b9 + (seed << 6U) + (seed >> 2U);
-  }
   return seed;
 }
 
@@ -41,5 +42,3 @@ template <int D, int N>
 
 template Eigen::Matrix<FLOAT_T, 4, 1> kernel(const Eigen::Matrix<FLOAT_T, 4, 3> &matrix);
 } // namespace stmesh
-
-// NOLINTEND(misc-include-cleaner)

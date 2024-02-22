@@ -1,8 +1,11 @@
-// NOLINTBEGIN(misc-include-cleaner)
 #include "stmesh/boundary_region_manager.hpp"
 
 #include <algorithm>
+#include <cstddef>
 #include <iterator>
+
+#include "stmesh/sdf.hpp"
+#include "stmesh/utility.hpp"
 
 namespace stmesh {
 size_t HypercubeBoundaryManager::addBoundaryRegion(const HyperCube4 &boundary_region) {
@@ -18,4 +21,3 @@ size_t HypercubeBoundaryManager::addBoundaryRegion(const HyperCube4 &boundary_re
   return 0;
 }
 } // namespace stmesh
-  // NOLINTEND(misc-include-cleaner)

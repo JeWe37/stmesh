@@ -3,6 +3,8 @@
 
 #include <array>
 #include <concepts> // IWYU pragma: keep
+#include <cstddef>
+#include <utility>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polyhedron_3.h>
@@ -75,7 +77,6 @@ public:
 
   [[nodiscard]] CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel>
   planeCut(const Eigen::Hyperplane<FLOAT_T, static_cast<int>(D)> &plane) const
-      // NOLINTNEXTLINE(*-magic-numbers)
   requires(D == 4 && N == 5);
 
   [[nodiscard]] Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> boundingBox() const noexcept;

@@ -5,7 +5,9 @@
 #include <concepts> // IWYU pragma: keep
 #include <optional>
 #include <random>
+#include <set>
 #include <tuple>
+#include <utility>
 #include <variant>
 #include <vector>
 
@@ -13,16 +15,19 @@
 #include <boost/geometry.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/index/parameters.hpp>
+#include <boost/geometry/index/predicates.hpp>
 #include <boost/geometry/index/rtree.hpp>
 #include <boost/heap/fibonacci_heap.hpp>
 #include <boost/iterator.hpp>
 #include <spdlog/spdlog.h>
 
+#include "geometric_simplex.hpp"
 #include "meshing_cell.hpp"
-#include "stmesh/geometric_simplex.hpp"
-#include "stmesh/utility.hpp"
+#include "sdf.hpp"
 #include "surface_adapters.hpp" // IWYU pragma: keep
 #include "triangulation.hpp"
+#include "utility.hpp"
 
 namespace stmesh {
 template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = std::mt19937_64> class MeshingAlgorithm {
@@ -73,7 +78,6 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
     handles.reserve(full_cells.size());
     for (const auto &full_cell : full_cells) {
       handles.push_back(full_cell->data().extra_data.cell_handle);
-      // NOLINTNEXTLINE(*-magic-numbers)
       for (unsigned i = 0; i < 5; ++i) {
         if ((full_cell->data().extra_data.dependents & static_cast<unsigned>(static_cast<unsigned char>(1) << i)) != 0U)
           dependent_full_cells.insert(full_cell->neighbor(static_cast<int>(i)));
@@ -225,7 +229,7 @@ public:
         // insertion this means it is sufficient to recheck the condition inside the application and do nothing if
         // no longer needed the issue is that rule5 also includes the removal of vertices. this means complete rules
         // could become invalid we need to store which (complete) rules depend on the existence of a point and
-        // reevaluate them on removal NOLINTNEXTLINE(cppcoreguidelines-init-variables)
+        // reevaluate them on removal
         Vector4F facet_mirror_vertex_vec = triangulation_.pointToVec(vertex->point());
         if ((*point - facet_mirror_vertex_vec).squaredNorm() > (*point - vertices.col(0)).squaredNorm()) {
           if (dependent_neighbor_info != nullptr)
@@ -252,7 +256,6 @@ public:
   }
 
   [[nodiscard]] std::pair<Vector4F, FLOAT_T>
-  // NOLINTNEXTLINE(*-magic-numbers)
   sampleFromPickingRegion(const Eigen::Matrix<FLOAT_T, 4, 5> &vertices) noexcept {
     HyperSphere<4> circumsphere = GeometricSimplex<4>(vertices).circumsphere();
     circumsphere.scale(zeta_);

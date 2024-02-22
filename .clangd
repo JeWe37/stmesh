@@ -1,0 +1,11 @@
+---
+Hover:
+  ShowAKA: No
+Diagnostics:
+  MissingIncludes: Strict
+  UnusedIncludes: Strict
+  ClangTidy:
+    Add: misc-include-cleaner
+  Includes:
+    IgnoreHeader: 
+      - 'Eigen/src/(Core|Geometry|SVD)/.*'

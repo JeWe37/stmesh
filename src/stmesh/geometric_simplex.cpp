@@ -1,13 +1,20 @@
-// NOLINTBEGIN(misc-include-cleaner)
-#include <stmesh/geometric_simplex.hpp>
+#include "stmesh/geometric_simplex.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <utility>
 #include <vector>
 
 #include <CGAL/Dimension.h>
 #include <CGAL/Epick_d.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#include <CGAL/Polyhedron_3.h>
+#include <CGAL/convex_hull_3.h>
+#include <Eigen/Core>
+
+#include "stmesh/sdf.hpp"
+#include "stmesh/utility.hpp"
 
 namespace stmesh {
 template <unsigned D, unsigned N>
@@ -64,8 +71,7 @@ template <unsigned D, unsigned N> [[nodiscard]] HyperSphere<D> GeometricSimplex<
   std::vector<Point> points;
   points.reserve(N + 1);
   std::ranges::transform(vertices_.colwise(), std::back_inserter(points),
-                         // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-                         [](const auto &vertex) { return Point(vertex.data(), vertex.data() + D); });
+                         [](const auto &vertex) { return Point(vertex.begin(), vertex.end()); });
   const Point point = Kernel().construct_circumcenter_d_object()(points.begin(), points.end());
   const Vector4F center = {CGAL::to_double(point[0]), CGAL::to_double(point[1]), CGAL::to_double(point[2]),
                            CGAL::to_double(point[3])};
@@ -103,7 +109,6 @@ requires(N == 2)
 template <unsigned D, unsigned N>
 [[nodiscard]] CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel>
 GeometricSimplex<D, N>::planeCut(const Eigen::Hyperplane<FLOAT_T, static_cast<int>(D)> &plane) const
-    // NOLINTNEXTLINE(*-magic-numbers)
 requires(D == 4 && N == 5)
 {
   using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -125,8 +130,7 @@ requires(D == 4 && N == 5)
 template <unsigned D, unsigned N>
 [[nodiscard]] Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> GeometricSimplex<D, N>::boundingBox() const noexcept {
   Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> box;
-  // NOLINTNEXTLINE(performance-for-range-copy)
-  for (const Vector4F vert : vertices_.colwise())
+  for (const auto &vert : vertices_.colwise())
     box.extend(vert);
   return box;
 }
@@ -230,5 +234,3 @@ template class GeometricSimplex<4, 4>;
 template class GeometricSimplex<4, 3>;
 template class GeometricSimplex<4, 2>;
 } // namespace stmesh
-
-// NOLINTEND(misc-include-cleaner)

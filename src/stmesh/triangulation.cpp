@@ -1,15 +1,23 @@
-// NOLINTBEGIN(misc-include-cleaner)
-#include "stmesh/utility.hpp"
+#include "stmesh/triangulation.hpp"
+
 #include <algorithm>
-#include <stmesh/meshing_cell.hpp>
-#include <stmesh/triangulation.hpp>
-
 #include <array>
+#include <cstddef>
 #include <iterator>
+#include <optional>
+#include <stdexcept>
 #include <tuple>
+#include <variant>
+#include <vector>
 
-#include <boost/heap/fibonacci_heap.hpp>
-#include <boost/iterator.hpp>
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <boost/geometry/index/predicates.hpp>
+
+#include "stmesh/geometric_simplex.hpp"
+#include "stmesh/meshing_cell.hpp"
+#include "stmesh/sdf.hpp"
+#include "stmesh/utility.hpp"
 
 namespace stmesh {
 template <typename ExtraData>
@@ -122,7 +130,6 @@ template <typename ExtraData>
   Eigen::Matrix<FLOAT_T, 4, 4> vertices;
   const FullCellHandle cell = triangulation_.tds().full_cell(facet);
   int j = 0;
-  // NOLINTNEXTLINE(*-magic-numbers)
   for (int i = 0; i < 5; ++i) {
     if (i == triangulation_.tds().index_of_covertex(facet))
       continue;
@@ -146,7 +153,6 @@ template <typename ExtraData>
   for (const auto &full_cell : possible_full_cells) {
     Facet ret;
     bool done = true;
-    // NOLINTNEXTLINE(*-magic-numbers)
     for (int i = 0; i < 5; ++i) {
       const Vector4F vertex = pointToVec(triangulation_.tds().vertex(full_cell, i)->point());
       if (!(vertices.array() == vertex.array().replicate<1, 4>()).colwise().all().any()) {
@@ -201,10 +207,8 @@ template <typename ExtraData>
 
 template <typename ExtraData>
 [[nodiscard]] GeometricSimplex<4> Triangulation<ExtraData>::fullCellSimplex(FullCellConstHandle full_cell) noexcept {
-  // NOLINTBEGIN(*-magic-numbers)
   Eigen::Matrix<FLOAT_T, 4, 5> vertices;
   for (int i = 0; i < 5; ++i)
-    // NOLINTEND(*-magic-numbers)
     vertices.col(i) = pointToVec(full_cell->vertex(i)->point());
   return GeometricSimplex<4>{vertices};
 }
@@ -273,5 +277,3 @@ template <typename ExtraData>
 template class Triangulation<detail::ExtraData>;
 template class Triangulation<std::monostate>;
 } // namespace stmesh
-
-// NOLINTEND(misc-include-cleaner)

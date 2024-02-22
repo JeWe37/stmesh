@@ -13,7 +13,6 @@
 #include <CGAL/Epick_d.h>
 #include <CGAL/enum.h>
 #include <CGAL/number_utils.h>
-// NOLINTNEXTLINE(misc-include-cleaner)
 #include <Eigen/Geometry>
 
 #include "stmesh/table.hpp"
@@ -30,7 +29,6 @@ std::optional<Vector4F> surfaceRayIntersection(const Vector4F &start, const Vect
   constexpr unsigned kHyperplaneStride = 5;
   constexpr FLOAT_T kEps = sqrt(std::numeric_limits<FLOAT_T>::epsilon());
   Kernel::Oriented_side_d side{};
-  // NOLINTNEXTLINE(misc-include-cleaner)
   auto ray = Eigen::ParametrizedLine<FLOAT_T, 4>::Through(start, end);
   unsigned index = 0;
   for (unsigned i = 0; i < corner_values.size(); ++i) {
@@ -58,7 +56,6 @@ std::optional<Vector4F> surfaceRayIntersection(const Vector4F &start, const Vect
       const auto [hyperplane, normal] = hyperplane_from_index(j);
       component.emplace_back(hyperplane);
 
-      // NOLINTNEXTLINE(misc-include-cleaner)
       const Eigen::Hyperplane<FLOAT_T, 4> plane(normal, detail::kHyperplanes[j + 4]);
       const FLOAT_T intersection_parameter = ray.intersectionParameter(plane);
       if (std::isfinite(intersection_parameter)) {

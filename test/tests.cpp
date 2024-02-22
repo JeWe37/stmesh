@@ -1,4 +1,4 @@
-// NOLINTBEGIN(*-magic-numbers,misc-include-cleaner,readability-function-cognitive-complexity)
+// NOLINTBEGIN(misc-include-cleaner)
 #include "stmesh/edt.hpp"
 #include "stmesh/geometric_simplex.hpp"
 #include "stmesh/marching_hypercubes.hpp"
@@ -340,7 +340,6 @@ TEST_CASE("Test hypercube functionality in 4D", "[hypercube][sdf]") {
   }
 }
 
-// NOLINTBEGIN(bugprone-unchecked-optional-access)
 TEST_CASE("Test marching hypercubes", "[marching_hypercubes]") {
   {
     const stmesh::Vector4F start{stmesh::FLOAT_T(0.1), stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(0.5),
@@ -399,7 +398,6 @@ TEST_CASE("Test marching hypercubes", "[marching_hypercubes]") {
     REQUIRE_FALSE(inside);
   }
 }
-// NOLINTEND(bugprone-unchecked-optional-access)
 
 TEST_CASE("Test euclidean distance transform with sphere", "[sphere_edt][edt]") {
   const stmesh::EDTReader<4> reader("data/sphere.mha");
@@ -470,7 +468,6 @@ TEST_CASE("Test sdf adapter with sphere sdf", "[sdf_adapter][surface_adapter]") 
     const auto max_distance = stmesh::FLOAT_T(10.0);
     const stmesh::Vector3F direction1{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0)};
     const stmesh::Vector3F point1{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)};
-    // NOLINTBEGIN(bugprone-unchecked-optional-access)
     REQUIRE(*adapter.raycast(point1, direction1, max_distance) ==
             stmesh::Vector3F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
     const stmesh::Vector3F direction2{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), -stmesh::FLOAT_T(1.0)};
@@ -481,7 +478,6 @@ TEST_CASE("Test sdf adapter with sphere sdf", "[sdf_adapter][surface_adapter]") 
     const stmesh::Vector3F point3{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0)};
     REQUIRE(*adapter.raycast(point3, direction3, max_distance) ==
             stmesh::Vector3F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0)});
-    // NOLINTEND(bugprone-unchecked-optional-access)
   }
 }
 
@@ -547,7 +543,6 @@ TEST_CASE("Test edt adapter with sphere edt", "[edt_adapter][surface_adapter]") 
                                       stmesh::FLOAT_T(1.0)};
     const stmesh::Vector4F point1{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5),
                                   stmesh::FLOAT_T(22.5)};
-    // NOLINTBEGIN(bugprone-unchecked-optional-access)
     REQUIRE(
         *adapter.raycast(point1, direction1, max_distance) ==
         stmesh::Vector4F{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(42.0)});
@@ -565,7 +560,6 @@ TEST_CASE("Test edt adapter with sphere edt", "[edt_adapter][surface_adapter]") 
     REQUIRE(
         *adapter.raycast(point3, direction3, max_distance) ==
         stmesh::Vector4F{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(22.5)});
-    // NOLINTEND(bugprone-unchecked-optional-access)
   }
 }
 
@@ -806,13 +800,12 @@ TEST_CASE("Test triangulation store", "[triangulation]") {
     REQUIRE(triangulation.boundingBox().max() == bounding_box.max());
     for (const auto &full_cell : triangulation) {
       REQUIRE(full_cell.data().committed);
-      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-      for (const auto *it = full_cell.vertices_begin(); it != full_cell.vertices_end(); ++it) {
-        const stmesh::Triangulation<>::Point pt = (*it)->point();
-        const stmesh::Vector4F vertex{static_cast<stmesh::FLOAT_T>(pt[0]), static_cast<stmesh::FLOAT_T>(pt[1]),
-                                      static_cast<stmesh::FLOAT_T>(pt[2]), static_cast<stmesh::FLOAT_T>(pt[3])};
-        REQUIRE(vertex.cwiseAbs() == max);
-        REQUIRE((*it)->data().nonfree_vertex);
+      for (const auto &vertex : std::span(full_cell.vertices_begin(), full_cell.vertices_end())) {
+        const stmesh::Triangulation<>::Point pt = vertex->point();
+        const stmesh::Vector4F point{static_cast<stmesh::FLOAT_T>(pt[0]), static_cast<stmesh::FLOAT_T>(pt[1]),
+                                     static_cast<stmesh::FLOAT_T>(pt[2]), static_cast<stmesh::FLOAT_T>(pt[3])};
+        REQUIRE(point.cwiseAbs() == max);
+        REQUIRE(vertex->data().nonfree_vertex);
       }
     }
   }
@@ -880,13 +873,11 @@ TEST_CASE("Test triangulation store", "[triangulation]") {
       REQUIRE_THAT(facet_vertices, Matchers::UnorderedEquals(simplex3));
       auto [existing_side, optional_side] = triangulation.facetMirrorVertices(facet);
       REQUIRE(optional_side.has_value());
-      // NOLINTBEGIN(bugprone-unchecked-optional-access)
       std::array<stmesh::Triangulation<>::VertexHandle, 2> mirror_vertices = {std::get<0>(existing_side),
                                                                               std::get<0>(*optional_side)};
       std::array<int, 2> vertex_indices = {std::get<1>(existing_side), std::get<1>(*optional_side)};
       std::array<stmesh::Triangulation<>::FullCellHandle, 2> full_cells = {std::get<2>(existing_side),
                                                                            std::get<2>(*optional_side)};
-      // NOLINTEND(bugprone-unchecked-optional-access)
       for (size_t i = 0; i < 2; ++i)
         REQUIRE(full_cells.at(i)->vertex(vertex_indices.at(i)) == mirror_vertices.at(i));
       for (int i = 0; i < 5; ++i) {
@@ -1030,7 +1021,6 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
       std::pair<stmesh::detail::Triangulation::FullCellHandle, int> dependent_neighbor_info;
       std::optional voronoi_dual = meshing_algorithm.voronoiDual(points, &dependent_neighbor_info);
       REQUIRE(voronoi_dual.has_value());
-      // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
       REQUIRE((*voronoi_dual -
                stmesh::Vector4F{stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0)}
                    .normalized())
@@ -1052,7 +1042,6 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
         verifyMeshingAlgorithm(meshing_algorithm);
         std::optional voronoi_dual2 = meshing_algorithm.voronoiDual(points2);
         REQUIRE(voronoi_dual2.has_value());
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         REQUIRE((*voronoi_dual2 - stmesh::Vector4F{-stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0),
                                                    stmesh::FLOAT_T(1.0)}
                                       .normalized())
@@ -1067,7 +1056,6 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
                                                          stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0)}
                                             .normalized())
                            .norm()));
-        // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
         REQUIRE(surface_ball.center() == *voronoi_dual);
         SECTION("Test picking region") {
           surface_ball.scale(stmesh::FLOAT_T(0.5));
@@ -1238,4 +1226,4 @@ TEST_CASE("End to end sphere meshing", "[sphere_meshing][meshing_algorithm]") {
                                              stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(0.15));
   meshing_algorithm.triangulate([&] { verifyMeshingAlgorithm(meshing_algorithm); });
 }
-// NOLINTEND(*-magic-numbers,misc-include-cleaner,readability-function-cognitive-complexity)
+// NOLINTEND(misc-include-cleaner)

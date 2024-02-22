@@ -3,6 +3,7 @@
 
 #include <array>
 #include <concepts> // IWYU pragma: keep
+#include <cstddef>
 #include <limits>
 
 #include <Eigen/Core>

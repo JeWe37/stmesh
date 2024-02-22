@@ -1,7 +1,10 @@
-// NOLINTBEGIN(misc-include-cleaner)
-#include <stmesh/sdf.hpp>
+#include "stmesh/sdf.hpp"
 
 #include <algorithm>
+
+#include <Eigen/Geometry>
+
+#include "stmesh/utility.hpp"
 
 namespace stmesh {
 template <unsigned D>
@@ -53,5 +56,3 @@ template <unsigned D>
 
 template class HyperCube<4>;
 } // namespace stmesh
-
-// NOLINTEND(misc-include-cleaner)

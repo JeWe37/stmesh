@@ -1,22 +1,30 @@
-// NOLINTBEGIN(misc-include-cleaner)
-#include <stmesh/edt.hpp>
+#include "stmesh/edt.hpp"
 
+#include <algorithm>
+#include <cstddef>
 #include <functional>
 #include <numeric>
+#include <string>
 #include <type_traits>
+#include <vector>
 
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <itkAddImageFilter.h>
 #include <itkBinaryImageToLabelMapFilter.h>
 #include <itkBinaryThresholdImageFilter.h>
 #include <itkDanielssonDistanceMapImageFilter.h>
 #include <itkImage.h>
 #include <itkImageFileReader.h>
-#include <itkImageRegionIterator.h>
+#ifndef __clang_analyzer__
+#include <itkImageRegionConstIterator.h>
+#endif
 #include <itkLabelMapToLabelImageFilter.h>
 #include <itkLabelStatisticsImageFilter.h>
 #include <itkOffset.h>
-#include <itkSmartPointer.h>
 #include <itkSubtractImageFilter.h>
+
+#include "stmesh/utility.hpp"
 
 namespace stmesh {
 
@@ -141,7 +149,6 @@ template <unsigned D> size_t EDTReader<D>::findBoundaryRegion(const Vector4F &po
 }
 
 template <unsigned D> VectorF<D> EDTReader<D>::closestAt(const VectorF<D> &point) const noexcept {
-  // NOLINTNEXTLINE(*-magic-numbers)
   return (clamp(point).array().template cast<FLOAT_T>() + FLOAT_T(0.5)).matrix() + vector_map_[projection(point)];
 }
 
@@ -151,4 +158,3 @@ template <unsigned D> Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> EDTReader<
 
 template class EDTReader<4>;
 } // namespace stmesh
-  // NOLINTEND(misc-include-cleaner)

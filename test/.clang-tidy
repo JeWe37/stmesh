@@ -1,0 +1,5 @@
+---
+Checks: "
+  -*-magic-numbers,
+  -bugprone-unchecked-optional-access
+"
