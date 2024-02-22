@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <unordered_set>
 #include <vector>
 
@@ -421,6 +422,10 @@ TEST_CASE("Test euclidean distance transform with sphere", "[sphere_edt][edt]") 
   REQUIRE(
       reader.closestAt({stmesh::FLOAT_T(12.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0)}) ==
       stmesh::Vector4F{stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)});
+  REQUIRE(reader.findBoundaryRegion({stmesh::FLOAT_T(12.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0),
+                                     stmesh::FLOAT_T(22.0)}) == size_t{1});
+  REQUIRE(reader.findBoundaryRegion({stmesh::FLOAT_T(32.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0),
+                                     stmesh::FLOAT_T(22.0)}) == size_t{2});
 }
 
 TEST_CASE("Test sdf adapter with sphere sdf", "[sdf_adapter][surface_adapter]") {
@@ -481,7 +486,8 @@ TEST_CASE("Test sdf adapter with sphere sdf", "[sdf_adapter][surface_adapter]") 
 }
 
 TEST_CASE("Test edt adapter with sphere edt", "[edt_adapter][surface_adapter]") {
-  const stmesh::EDTSurfaceAdapter<stmesh::EDTReader<4>> adapter("data/sphere.mha");
+  const auto edt_reader = std::make_shared<stmesh::EDTReader<4>>("data/sphere.mha");
+  const stmesh::EDTSurfaceAdapter adapter(edt_reader);
   {
     INFO("Correctly constructed");
     REQUIRE(adapter.boundingBox().min() ==
