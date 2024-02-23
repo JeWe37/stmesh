@@ -1,5 +1,4 @@
 include(cmake/SystemLink.cmake)
-include(cmake/LibFuzzer.cmake)
 include(CMakeDependentOption)
 include(CheckCXXCompilerFlag)
 
@@ -79,15 +78,6 @@ macro(stmesh_setup_options)
       stmesh_ENABLE_PCH
       stmesh_ENABLE_CACHE)
   endif()
-
-  stmesh_check_libfuzzer_support(LIBFUZZER_SUPPORTED)
-  if(LIBFUZZER_SUPPORTED AND (stmesh_ENABLE_SANITIZER_ADDRESS OR stmesh_ENABLE_SANITIZER_THREAD OR stmesh_ENABLE_SANITIZER_UNDEFINED))
-    set(DEFAULT_FUZZER ON)
-  else()
-    set(DEFAULT_FUZZER OFF)
-  endif()
-
-  option(stmesh_BUILD_FUZZ_TESTS "Enable fuzz testing executable" ${DEFAULT_FUZZER})
 
 endmacro()
 
