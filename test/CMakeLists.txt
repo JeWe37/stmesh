@@ -29,7 +29,16 @@ add_test(NAME cli.has_help COMMAND stmesher --help)
 add_test(NAME cli.version_matches COMMAND stmesher --version)
 set_tests_properties(cli.version_matches PROPERTIES PASS_REGULAR_EXPRESSION "${PROJECT_VERSION}")
 
-add_executable(tests tests.cpp)
+add_executable(tests 
+  edt_tests.cpp
+  geometric_simplex_tests.cpp
+  marching_hypercubes_tests.cpp
+  meshing_algorithm_tests.cpp
+  sdf_tests.cpp
+  surface_adapter_tests.cpp
+  triangulation_tests.cpp
+  utility_tests.cpp
+)
 target_link_libraries(
   tests
   PRIVATE stmesh::stmesh_warnings
