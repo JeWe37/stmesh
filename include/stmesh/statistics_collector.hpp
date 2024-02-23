@@ -16,6 +16,23 @@
 #include "triangulation.hpp"
 
 namespace stmesh {
+/// Write statistics to a file from a triangulation
+/**
+ * Writes statistics to a file from a triangulation. The statistics written are:
+ * - The full cell id
+ * - The content(volume) of the full cell
+ * - The shortest edge length of the full cell
+ * - The radius of the circumsphere of the full cell
+ * - The ratio of the radius of the circumsphere to the shortest edge length
+ * - The quality of the full cell
+ * Only full cells whose circumsphere is inside the surface are written to the statistics file.
+ * The file is written in CSV format.
+ *
+ * @param file The path to the file to write the statistics to
+ * @param surface The surface adapter to use to determine which full cells to write to the statistics file
+ * @param triangulation The triangulation to write the statistics from
+ * @tparam ExtraData The type of extra data stored in the triangulation
+ */
 template <typename ExtraData>
 void writeStatistics([[maybe_unused]] const std::filesystem::path &file,
                      [[maybe_unused]] const SurfaceAdapter4 auto &surface,
