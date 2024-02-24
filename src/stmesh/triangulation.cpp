@@ -62,8 +62,6 @@ auto Triangulation<ExtraData>::insert(const Vector4F &point, FullCellHandle hint
   const Point p(point.begin(), point.end());
   const BGPoint bg_point = pointFromVector(point);
   // valid since iterators are not invalidated by insert
-  // TODO: using hint from kdtree, should test with and without
-  // then also wouldn't need closestPoint anymore
   (vertex_handle_map_[point] = triangulation_.insert(p, hint))->data().nonfree_vertex = nonfree_vertex;
   tree_.insert(bg_point);
   return vertex_handle_map_.at(point);
