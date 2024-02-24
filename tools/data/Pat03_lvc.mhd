@@ -1,0 +1,7 @@
+ObjectType = Image
+NDims = 4
+DimSize = 100 100 26 15
+ElementType = MET_UCHAR
+HeaderSize = -1
+ElementSpacing = 1.77 1.77 6 1
+ElementDataFile = /workspaces/stmesh/tools/data/HeartDatabase/Pat03/mse4d/lvc/seg4db_cavity%04d.pgm 1 15 1
