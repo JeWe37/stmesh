@@ -72,10 +72,8 @@ TEST_CASE("Test edt adapter with sphere edt", "[edt_adapter][surface_adapter]") 
   const stmesh::EDTSurfaceAdapter adapter(edt_reader);
   {
     INFO("Correctly constructed");
-    REQUIRE(adapter.boundingBox().min() ==
-            stmesh::Vector4F{stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0)});
-    REQUIRE(adapter.boundingBox().max() == stmesh::Vector4F{stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(42.0),
-                                                            stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(42.0)});
+    REQUIRE(adapter.boundingBox().min() == stmesh::Vector4F::Constant(stmesh::FLOAT_T(3.0)));
+    REQUIRE(adapter.boundingBox().max() == stmesh::Vector4F::Constant(stmesh::FLOAT_T(42.0)));
   }
   {
     INFO("Correctly computes closest point");

@@ -1,11 +1,9 @@
 #ifndef STMESH_EDT_READER_HPP
 #define STMESH_EDT_READER_HPP
 
-#include <array>
 #include <concepts> // IWYU pragma: keep
 #include <cstddef>
 #include <string>
-#include <vector>
 
 #include <Eigen/Geometry>
 
@@ -38,15 +36,8 @@ concept EuclideanDistanceTransform = requires(const T t, VectorF<D> vec) {
  * @tparam D The dimension of the space
  */
 template <unsigned D> class EDTReader {
-  std::vector<FLOAT_T> distance_map_;
-  std::vector<Vector4F> vector_map_;
-  std::vector<unsigned char> voxel_type_;
-  std::array<size_t, D> sizes_;
-  Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> bounding_box_;
-
-  [[nodiscard]] Eigen::Vector<size_t, 4> clamp(const Vector4F &point) const noexcept;
-
-  [[nodiscard]] size_t projection(const Vector4F &point) const noexcept;
+  struct impl;
+  impl *pimpl_;
 
 public:
   /// Construct an Euclidean distance transform reader
@@ -59,6 +50,35 @@ public:
    * @param filename The filename of the Euclidean distance transform
    */
   explicit EDTReader(const std::string &filename);
+
+  /// Destruct the Euclidean distance transform reader
+  /**
+   * Destruct the Euclidean distance transform reader. The reader frees the memory that was used to store the Euclidean
+   * distance transform.
+   */
+  ~EDTReader();
+
+  EDTReader(const EDTReader &) = delete;
+  EDTReader &operator=(const EDTReader &) = delete;
+
+  /// Move construct the Euclidean distance transform reader
+  /**
+   * Move construct the Euclidean distance transform reader. The reader takes ownership of the Euclidean distance
+   * transform from the other reader.
+   *
+   * @param other The other reader to move from
+   */
+  EDTReader(EDTReader &&other) noexcept;
+
+  /// Move assign the Euclidean distance transform reader
+  /**
+   * Move assign the Euclidean distance transform reader. The reader takes ownership of the Euclidean distance transform
+   * from the other reader.
+   *
+   * @param other The other reader to move from
+   * @return The moved reader
+   */
+  EDTReader &operator=(EDTReader &&other) noexcept;
 
   /// Get the signed distance at a point
   /**
