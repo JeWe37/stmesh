@@ -2,7 +2,11 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
+#include <iterator>
+#include <span>
 #include <string>
+#include <vector>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -25,7 +29,7 @@
 
 namespace stmesh {
 
-template <unsigned D> struct EDTReader<D>::impl {
+template <unsigned D> struct EDTReader<D>::Impl {
   using Index = itk::Index<D>;
 
   using Image = itk::Image<unsigned char, D>;
@@ -77,16 +81,16 @@ template <unsigned D> struct EDTReader<D>::impl {
       min[static_cast<Index::size_type>(i)] = label_statistics_image_filter->GetBoundingBox(1)[i * 2];
       max[static_cast<Index::size_type>(i)] = label_statistics_image_filter->GetBoundingBox(1)[i * 2 + 1];
     }
-    return {indexToVector(min) - Vector4F::Constant(0.5), indexToVector(max) + Vector4F::Constant(0.5)};
+    return {indexToVector(min) - 1.0 * spacing(), indexToVector(max) + 1.0 * spacing()};
   }
 
-  explicit impl(const std::string &filename)
+  explicit Impl(const std::string &filename)
       : threshold_image_filter(BinaryThresholdImageFilter::New()),
         distance_map_image_filter(DanielssonDistanceMapImageFilter::New()),
         not_distance_map_image_filter(DanielssonDistanceMapImageFilter::New()), add_image_filter(AddImageFilter::New()),
         subtract_image_filter(SubtractImageFilter::New()), read_image(itk::ReadImage<Image>(filename)),
         distance_map(subtract_image_filter->GetOutput()), vector_map(add_image_filter->GetOutput()) {
-    const stmesh::Vector4F origin = stmesh::Vector4F::Constant(0.5);
+    const stmesh::Vector4F origin = spacing() * 0.5;
     read_image->SetOrigin(origin.data());
 
     threshold_image_filter->SetLowerThreshold(1);
@@ -115,12 +119,14 @@ template <unsigned D> struct EDTReader<D>::impl {
     using Size = Image::SizeType;
 
     Size size = read_image->GetLargestPossibleRegion().GetSize();
-    Vector4F size_vec;
-    std::ranges::copy(size, size_vec.begin());
-    Vector4F clamped_vec = vec.cwiseMax(Vector4F::Zero()).cwiseMin(size_vec);
 
-    const Point point(clamped_vec.data());
-    return read_image->TransformPhysicalPointToIndex(point);
+    const Point point(vec.data());
+    Index result = read_image->TransformPhysicalPointToIndex(point);
+    for (size_t i = 0; i < D; ++i)
+      result[static_cast<Index::size_type>(i)] =
+          std::clamp(result[static_cast<Index::size_type>(i)], typename Index::IndexValueType(0),
+                     typename Index::IndexValueType(size[static_cast<Size::size_type>(i)] - 1));
+    return result;
   }
 
   [[nodiscard]] VectorF<D> indexToVector(const Index &index) const noexcept {
@@ -132,14 +138,49 @@ template <unsigned D> struct EDTReader<D>::impl {
     std::ranges::copy(point, result.begin());
     return result;
   }
+
+  [[nodiscard]] VectorF<D> spacing() const noexcept {
+    using Spacing = Image::SpacingType;
+
+    Spacing spacing = read_image->GetSpacing();
+    Vector4F result;
+    std::ranges::copy(spacing, result.begin());
+    return result;
+  }
+
+  template <size_t N = 0, typename Output>
+  void getMultiIndex(Index min_corner, const std::span<const size_t, D> &size, Output &it) const {
+    if constexpr (N == D)
+      *it++ = distance_map->GetPixel(min_corner);
+    else {
+      for (size_t i = 0; i < size[N]; ++i) {
+        getMultiIndex<N + 1>(min_corner, size, it);
+        if (min_corner[N] < static_cast<Index::size_type>(read_image->GetLargestPossibleRegion().GetSize()[N] - 1))
+          min_corner[N]++;
+      }
+    }
+  }
 };
 
 template <unsigned D> EDTReader<D>::EDTReader(const std::string &filename) : pimpl_(new Impl(filename)) {}
 
 template <unsigned D> EDTReader<D>::~EDTReader() = default;
 
+template <unsigned D> Vector4F EDTReader<D>::spacing() const noexcept { return pimpl_->spacing(); }
+
 template <unsigned D> FLOAT_T EDTReader<D>::signedDistanceAt(const VectorF<D> &point) const noexcept {
   return pimpl_->distance_map->GetPixel(pimpl_->vectorToIndex(point));
+}
+
+template <unsigned D>
+[[nodiscard]] std::vector<FLOAT_T>
+EDTReader<D>::signedDistanceAt(const VectorF<D> &point, const std::span<const size_t, D> &size) const noexcept {
+  const typename Impl::Index min_corner = pimpl_->vectorToIndex(point);
+  std::vector<FLOAT_T> result;
+  result.reserve(std::accumulate(size.begin(), size.end(), size_t{1}, std::multiplies<>()));
+  std::back_insert_iterator out(result);
+  pimpl_->getMultiIndex(min_corner, size, out);
+  return result;
 }
 
 template <unsigned D> size_t EDTReader<D>::findBoundaryRegion(const Vector4F &point) const noexcept {
@@ -147,7 +188,7 @@ template <unsigned D> size_t EDTReader<D>::findBoundaryRegion(const Vector4F &po
 }
 
 template <unsigned D> VectorF<D> EDTReader<D>::closestAt(const VectorF<D> &point) const noexcept {
-  typename impl::Index index = pimpl_->vectorToIndex(point);
+  typename Impl::Index index = pimpl_->vectorToIndex(point);
   index += pimpl_->vector_map->GetPixel(index);
   return pimpl_->indexToVector(index);
 }

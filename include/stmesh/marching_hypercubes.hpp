@@ -24,6 +24,6 @@ namespace stmesh {
  */
 [[nodiscard]] std::optional<Vector4F> surfaceRayIntersection(const Vector4F &start, const Vector4F &end,
                                                              const std::array<bool, (1U << 4U)> &corner_values,
-                                                             bool *inside);
+                                                             bool *inside = nullptr);
 }; // namespace stmesh
 #endif
