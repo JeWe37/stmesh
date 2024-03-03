@@ -134,17 +134,9 @@ template <unsigned D> struct EDTReader<D>::impl {
   }
 };
 
-template <unsigned D> EDTReader<D>::EDTReader(const std::string &filename) : pimpl_(new impl(filename)) {}
+template <unsigned D> EDTReader<D>::EDTReader(const std::string &filename) : pimpl_(new Impl(filename)) {}
 
-template <unsigned D> EDTReader<D>::~EDTReader() { delete pimpl_; }
-
-template <unsigned D>
-EDTReader<D>::EDTReader(EDTReader &&other) noexcept : pimpl_(std::exchange(other.pimpl_, nullptr)) {}
-
-template <unsigned D> EDTReader<D> &EDTReader<D>::operator=(EDTReader &&other) noexcept {
-  std::swap(pimpl_, other.pimpl_);
-  return *this;
-}
+template <unsigned D> EDTReader<D>::~EDTReader() = default;
 
 template <unsigned D> FLOAT_T EDTReader<D>::signedDistanceAt(const VectorF<D> &point) const noexcept {
   return pimpl_->distance_map->GetPixel(pimpl_->vectorToIndex(point));

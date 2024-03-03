@@ -3,6 +3,7 @@
 
 #include <concepts> // IWYU pragma: keep
 #include <cstddef>
+#include <memory>
 #include <string>
 
 #include <Eigen/Geometry>
@@ -36,8 +37,8 @@ concept EuclideanDistanceTransform = requires(const T t, VectorF<D> vec) {
  * @tparam D The dimension of the space
  */
 template <unsigned D> class EDTReader {
-  struct impl;
-  impl *pimpl_;
+  struct Impl;
+  std::unique_ptr<Impl> pimpl_;
 
 public:
   /// Construct an Euclidean distance transform reader
@@ -51,34 +52,12 @@ public:
    */
   explicit EDTReader(const std::string &filename);
 
-  /// Destruct the Euclidean distance transform reader
-  /**
-   * Destruct the Euclidean distance transform reader. The reader frees the memory that was used to store the Euclidean
-   * distance transform.
-   */
+  // make pImpl unique_ptr deletable with incomplete type
   ~EDTReader();
-
   EDTReader(const EDTReader &) = delete;
   EDTReader &operator=(const EDTReader &) = delete;
-
-  /// Move construct the Euclidean distance transform reader
-  /**
-   * Move construct the Euclidean distance transform reader. The reader takes ownership of the Euclidean distance
-   * transform from the other reader.
-   *
-   * @param other The other reader to move from
-   */
-  EDTReader(EDTReader &&other) noexcept;
-
-  /// Move assign the Euclidean distance transform reader
-  /**
-   * Move assign the Euclidean distance transform reader. The reader takes ownership of the Euclidean distance transform
-   * from the other reader.
-   *
-   * @param other The other reader to move from
-   * @return The moved reader
-   */
-  EDTReader &operator=(EDTReader &&other) noexcept;
+  EDTReader(EDTReader &&) noexcept = default;
+  EDTReader &operator=(EDTReader &&) noexcept;
 
   /// Get the signed distance at a point
   /**
