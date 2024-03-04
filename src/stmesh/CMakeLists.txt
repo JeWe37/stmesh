@@ -32,6 +32,7 @@ target_link_libraries(stmesh PUBLIC
   CGAL::CGAL
   Eigen
   spdlog::spdlog
+  OpenMP::OpenMP_CXX
   ${ITK_LIBRARIES}
   ${Boost_INCLUDE_DIRS}
   ${VTK_LIBRARIES})
