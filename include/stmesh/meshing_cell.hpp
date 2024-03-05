@@ -150,8 +150,9 @@ struct Rule3 : Rule {
     const auto &surface = meshing_algorithm.surface_;
     const detail::Triangulation &triangulation = meshing_algorithm.triangulation_;
     GeometricSimplex<4> simplex = triangulation.fullCellSimplex(full_cell);
-    z = simplex.circumsphere().center();
-    return surface.inside(z) && simplex.radiusEdgeRatio() >= meshing_algorithm.rho_bar_;
+    HyperSphere4 circumsphere = simplex.circumsphere();
+    z = circumsphere.center();
+    return surface.inside(z) && circumsphere.radius() >= meshing_algorithm.max_radius_;
   }
 
   template <typename MeshingAlgorithm>
@@ -162,6 +163,26 @@ struct Rule3 : Rule {
 
 struct Rule4 : Rule {
   static constexpr inline int kIndex = 3;
+  Vector4F z;
+
+  template <typename MeshingAlgorithm>
+  unsigned check(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell,
+                 bool /*unused*/ = false) {
+    const auto &surface = meshing_algorithm.surface_;
+    const detail::Triangulation &triangulation = meshing_algorithm.triangulation_;
+    GeometricSimplex<4> simplex = triangulation.fullCellSimplex(full_cell);
+    z = simplex.circumsphere().center();
+    return surface.inside(z) && simplex.radiusEdgeRatio() >= meshing_algorithm.rho_bar_;
+  }
+
+  template <typename MeshingAlgorithm>
+  void apply(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell) const {
+    meshing_algorithm.insert(z, full_cell);
+  }
+};
+
+struct Rule5 : Rule {
+  static constexpr inline int kIndex = 4;
   Eigen::Matrix<FLOAT_T, 4, 5> vertices;
   unsigned prio;
 
@@ -188,8 +209,8 @@ struct Rule4 : Rule {
   }
 };
 
-struct Rule5 : Rule {
-  static constexpr inline int kIndex = 4;
+struct Rule6 : Rule {
+  static constexpr inline int kIndex = 5;
   Eigen::Matrix<FLOAT_T, 4, 4> vertices;
 
   template <typename MeshingAlgorithm>
@@ -256,7 +277,7 @@ struct Rule5 : Rule {
 };
 
 struct Complete : Rule {
-  static constexpr inline int kIndex = 5;
+  static constexpr inline int kIndex = 6;
 
   template <typename MeshingAlgorithm>
   static unsigned check(const MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell,
@@ -271,7 +292,7 @@ struct Complete : Rule {
   }
 };
 
-using Rules = std::variant<Rule1, Rule2, Rule3, Rule4, Rule5, Complete>;
+using Rules = std::variant<Rule1, Rule2, Rule3, Rule4, Rule5, Rule6, Complete>;
 
 struct Cell {
   Rules rule{};

@@ -30,9 +30,9 @@ constexpr stmesh::FLOAT_T kEps = std::numeric_limits<stmesh::FLOAT_T>::epsilon()
 
 void verifyMeshingAlgorithm(auto &meshing_algorithm) {
   const stmesh::detail::Triangulation &triangulation = meshing_algorithm.triangulation();
-  std::array<stmesh::detail::Rules, 6> rule_list{stmesh::detail::Rule1{}, stmesh::detail::Rule2{},
-                                                 stmesh::detail::Rule3{}, stmesh::detail::Rule4{},
-                                                 stmesh::detail::Rule5{}, stmesh::detail::Complete{}};
+  std::array<stmesh::detail::Rules, 7> rule_list{
+      stmesh::detail::Rule1{}, stmesh::detail::Rule2{}, stmesh::detail::Rule3{},   stmesh::detail::Rule4{},
+      stmesh::detail::Rule5{}, stmesh::detail::Rule6{}, stmesh::detail::Complete{}};
   using Heap = boost::heap::fibonacci_heap<stmesh::detail::Cell>;
   const Heap &queue = meshing_algorithm.queue();
   std::vector<Heap::handle_type> handles;
@@ -74,7 +74,8 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
       stmesh::FLOAT_T(1.0),
       stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
   stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(0.001),
-                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(2.0));
+                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(2.0),
+                                             stmesh::FLOAT_T(0.5));
   SECTION("Correctly constructed") {
     stmesh::Vector4F two_five{stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(2.5)};
     REQUIRE(meshing_algorithm.triangulation().boundingBox().min() == -two_five);
@@ -207,7 +208,8 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
       stmesh::FLOAT_T(0.2),
       stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
   stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(0.01),
-                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(0.15));
+                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(0.15),
+                                             stmesh::FLOAT_T(0.05));
   for (const auto &point : {
            stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)},
            stmesh::Vector4F{stmesh::FLOAT_T(0.05), stmesh::FLOAT_T(0.1), stmesh::FLOAT_T(0.1), stmesh::FLOAT_T(0.05)},
@@ -255,17 +257,25 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
                        const stmesh::HyperSphere4 circumsphere = simplex.circumsphere();
                        const stmesh::Vector4F &z = circumsphere.center();
                        REQUIRE(sdf_surface_adapter.inside(z));
-                       REQUIRE(simplex.radiusEdgeRatio() >= stmesh::FLOAT_T(20.0));
+                       REQUIRE(circumsphere.radius() > stmesh::FLOAT_T(0.05));
                        REQUIRE(r.z == z);
                      },
                      [&](const stmesh::detail::Rule4 &r) {
+                       const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);
+                       const stmesh::HyperSphere4 circumsphere = simplex.circumsphere();
+                       const stmesh::Vector4F &z = circumsphere.center();
+                       REQUIRE(sdf_surface_adapter.inside(z));
+                       REQUIRE(simplex.radiusEdgeRatio() >= stmesh::FLOAT_T(20.0));
+                       REQUIRE(r.z == z);
+                     },
+                     [&](const stmesh::detail::Rule5 &r) {
                        const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);
                        const stmesh::HyperSphere4 circumsphere = simplex.circumsphere();
                        REQUIRE(sdf_surface_adapter.inside(circumsphere.center()));
                        REQUIRE(simplex.sliverSimplex(20.0, stmesh::FLOAT_T(0.01)));
                        REQUIRE(r.vertices == simplex.vertices());
                      },
-                     [&](const stmesh::detail::Rule5 &r) {
+                     [&](const stmesh::detail::Rule6 &r) {
                        const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);
                        auto sub_simplices = simplex.subSimplices<4>();
                        REQUIRE(std::ranges::find_if(sub_simplices, [&](const auto &sub_simplex) {
@@ -286,7 +296,7 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
         [&]<typename Rule>(const Rule &r) {
           // picking region based rules cannot be tested, picking may not terminate for unbounded aspect ratio
           // similarly, if Complete were applied it would throw an error, so also ignore that
-          if constexpr (Rule::kIndex < stmesh::detail::Rule4::kIndex)
+          if constexpr (Rule::kIndex < stmesh::detail::Rule5::kIndex)
             r.apply(meshing_algorithm, it->full_cell);
         },
         it->rule);
@@ -299,7 +309,8 @@ TEST_CASE("End to end sphere meshing", "[sphere_meshing][meshing_algorithm]") {
       stmesh::FLOAT_T(0.2),
       stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
   stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(1e-6),
-                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(0.15));
+                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(0.15),
+                                             stmesh::FLOAT_T(0.12));
   meshing_algorithm.triangulate([&] { verifyMeshingAlgorithm(meshing_algorithm); });
 }
 // NOLINTEND(misc-include-cleaner)
