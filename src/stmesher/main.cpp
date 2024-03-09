@@ -50,6 +50,11 @@ int main(int argc, const char **argv) {
         ->default_val(stmesh::FLOAT_T(0.5))
         ->needs(vtk_output_dir_option);
 
+    std::string vtk_out_coord_format;
+    app.add_option("--vtk-out-coord-format", vtk_out_coord_format, "Format string for the coordinates file name")
+        ->default_val("")
+        ->needs(vtk_output_dir_option);
+
     size_t vtk_output_blocks;
     app.add_option("--vtk-output-blocks", vtk_output_blocks, "Number of blocks for vtk output")
         ->default_val(1)
@@ -127,7 +132,7 @@ int main(int argc, const char **argv) {
       if (vtk_output_dir) {
         spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
         stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, surface_adapter,
-                         meshing_algorithm.triangulation(), vtk_output_blocks);
+                         meshing_algorithm.triangulation(), vtk_out_coord_format, vtk_output_blocks);
       }
       if (mixd_output_file) {
         spdlog::info("Writing MIXD files to {}...", mixd_output_file->string());
