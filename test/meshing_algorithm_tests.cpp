@@ -77,9 +77,8 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
                                              stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(2.0),
                                              stmesh::FLOAT_T(0.5));
   SECTION("Correctly constructed") {
-    stmesh::Vector4F two_five{stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(2.5)};
-    REQUIRE(meshing_algorithm.triangulation().boundingBox().min() == -two_five);
-    REQUIRE(meshing_algorithm.triangulation().boundingBox().max() == two_five);
+    REQUIRE(meshing_algorithm.triangulation().boundingBox().min() == -stmesh::Vector4F::Constant(5.0));
+    REQUIRE(meshing_algorithm.triangulation().boundingBox().max() == stmesh::Vector4F::Constant(5.0));
     REQUIRE(meshing_algorithm.deltaSurface(stmesh::Vector4F::Zero()) == stmesh::FLOAT_T(2.0));
     verifyMeshingAlgorithm(meshing_algorithm);
   }

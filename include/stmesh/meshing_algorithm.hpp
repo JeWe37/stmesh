@@ -236,12 +236,8 @@ public:
    */
   [[nodiscard]] static Eigen::AlignedBox<FLOAT_T, 4> calculateBoundingBox(const Surface &surface, FLOAT_T delta) {
     Eigen::AlignedBox<FLOAT_T, 4> bounding_box = surface.boundingBox();
-    for (const Vector4F &corner : allCorners(bounding_box)) {
-      Vector4F cfp = surface.closestPoint(corner);
-      // TODO: fix if deltaSurface is ever changed
-      FLOAT_T add_dist = std::max(FLOAT_T{0}, 2 * delta - (corner - cfp).norm());
-      bounding_box.extend(corner + add_dist * (corner - cfp).normalized());
-    }
+    bounding_box.min().array() -= 2 * delta;
+    bounding_box.max().array() += 2 * delta;
     return bounding_box;
   }
 
