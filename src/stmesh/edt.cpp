@@ -1,6 +1,7 @@
 #include "stmesh/edt.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -153,13 +154,14 @@ template <unsigned D> struct EDTReader<D>::Impl {
     return result;
   }
 
-  template <size_t N = 0, typename Output>
-  void getMultiIndex(Index min_corner, const std::span<const size_t, D> &size, Output &it) const {
+  template <size_t N = 0>
+  void getMultiIndex(Index min_corner, const std::span<const size_t, D> &size, auto &&it, auto image) const {
     if constexpr (N == D)
-      *it++ = distance_map->GetPixel(min_corner);
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      *it++ = image->GetPixel(min_corner);
     else {
       for (size_t i = 0; i < size[N]; ++i) {
-        getMultiIndex<N + 1>(min_corner, size, it);
+        getMultiIndex<N + 1>(min_corner, size, it, image);
         if (min_corner[N] < static_cast<Index::size_type>(read_image->GetLargestPossibleRegion().GetSize()[N] - 1))
           min_corner[N]++;
       }
@@ -183,13 +185,17 @@ EDTReader<D>::signedDistanceAt(const VectorF<D> &point, const std::span<const si
   const typename Impl::Index min_corner = pimpl_->vectorToIndex(point);
   std::vector<FLOAT_T> result;
   result.reserve(std::accumulate(size.begin(), size.end(), size_t{1}, std::multiplies<>()));
-  std::back_insert_iterator out(result);
-  pimpl_->getMultiIndex(min_corner, size, out);
+  pimpl_->getMultiIndex(min_corner, size, std::back_insert_iterator(result), pimpl_->distance_map);
   return result;
 }
 
 template <unsigned D> size_t EDTReader<D>::findBoundaryRegion(const Vector4F &point) const noexcept {
-  return pimpl_->read_image->GetPixel(pimpl_->vectorToIndex(point));
+  const typename Impl::Index index = pimpl_->vectorToIndex(point - 0.5 * spacing());
+  std::array<unsigned char, 1U << 4U> distances{};
+  std::array<size_t, D> size{};
+  std::ranges::fill(size, 2U);
+  pimpl_->getMultiIndex(index, size, distances.begin(), pimpl_->read_image);
+  return *std::ranges::max_element(distances);
 }
 
 template <unsigned D> VectorF<D> EDTReader<D>::closestAt(const VectorF<D> &point) const noexcept {
