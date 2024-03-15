@@ -235,7 +235,8 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
                        REQUIRE(sdf_surface_adapter.intersectedBySphere(circumsphere));
                        const stmesh::Vector4F z = sdf_surface_adapter.closestPoint(circumsphere.center());
                        REQUIRE(z == r.z0);
-                       REQUIRE(triangulation.verticesInRadius(z, meshing_algorithm.deltaSurface(z)).empty());
+                       REQUIRE(std::ranges::all_of(triangulation.verticesInRadius(z, meshing_algorithm.deltaSurface(z)),
+                                                   [](const auto &vertex) { return !vertex->data().nonfree_vertex; }));
                      },
                      [&](const stmesh::detail::Rule2 &r) {
                        const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);

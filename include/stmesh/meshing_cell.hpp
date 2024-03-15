@@ -219,7 +219,8 @@ struct Rule6 : Rule {
     Eigen::Index idx{};
     auto nonfree_count = std::count_if(full_cell->vertices_begin(), full_cell->vertices_end(),
                                        [&, i = Eigen::Index{}](const auto &vertex) mutable {
-                                         if (vertex->data().nonfree_vertex)
+                                         if (!vertex->data().nonfree_vertex)
+                                           // record index of free vertex
                                            idx = i;
                                          i++;
                                          return vertex->data().nonfree_vertex;
@@ -227,7 +228,30 @@ struct Rule6 : Rule {
     std::pair<Triangulation::FullCellHandle, int> dependent_neighbor_info;
     auto full_cell_simplex = triangulation.fullCellSimplex(full_cell);
     switch (nonfree_count) {
-    case 0: {
+    case 5:
+      // if there are at no free vertices, none of the subsimplices will have any
+      return 0;
+    case 4: {
+      // if there is one free vertex(at idx), all subsimplices but one will have at least one
+      for (Eigen::Index i = 0; i < 5; ++i) {
+        // if the vertex we would skip as part of the subsimplex is the free one, skip it
+        if (i != idx) {
+          Eigen::Index j = 0;
+          for (Eigen::Index k = 0; k < 5; ++k) {
+            if (k != i)
+              vertices.col(j++) = full_cell_simplex.vertices().col(k);
+          }
+          if (meshing_algorithm.voronoiDual(vertices, &dependent_neighbor_info).has_value()) {
+            if (!dry_run && dependent_neighbor_info.first != full_cell)
+              std::apply(MeshingAlgorithm::addDependency, dependent_neighbor_info);
+            return 1;
+          }
+        }
+      }
+      return 0;
+    }
+    default: {
+      // if there are at least two free vertices, all subsimplices will have at least one
       auto sub_simplices = full_cell_simplex.template subSimplices<4>();
       if (auto it = std::ranges::find_if(
               sub_simplices,
@@ -242,21 +266,6 @@ struct Rule6 : Rule {
       }
       return 0;
     }
-    case 1: {
-      Eigen::Index j = 0;
-      for (Eigen::Index i = 0; i < 5; ++i) {
-        if (i != idx)
-          vertices.col(j++) = full_cell_simplex.vertices().col(i);
-      }
-      if (meshing_algorithm.voronoiDual(vertices, &dependent_neighbor_info).has_value()) {
-        if (!dry_run && dependent_neighbor_info.first != full_cell)
-          std::apply(MeshingAlgorithm::addDependency, dependent_neighbor_info);
-        return 1;
-      }
-      return 0;
-    }
-    default:
-      return 0;
     }
   }
 
