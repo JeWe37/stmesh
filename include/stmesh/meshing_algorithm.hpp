@@ -429,11 +429,17 @@ public:
   detail::Triangulation::VertexHandle pickGoodPoint(const Eigen::Matrix<FLOAT_T, 4, N> vertices,
                                                     detail::Triangulation::FullCellHandle hint = {}) noexcept {
     // TODO: can be sped up, this is comically inefficient
+    constexpr int kMaxIterations = 1000;
+    int iterations_remaining = kMaxIterations;
     while (true) {
       auto [sample, radius] = sampleFromPickingRegion(vertices);
       detail::Triangulation::VertexHandle vertex = insert(sample, hint, N == 4);
       if (triangulation_.isGoodPoint(vertex, rho_bar_, tau_bar_, b_ * radius))
         return vertex;
+      if (!iterations_remaining--) {
+        spdlog::warn("Failed to pick good point after {} iterations. Returning random point.", kMaxIterations);
+        return vertex;
+      }
       remove(vertex);
     }
   }
