@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <concepts> // IWYU pragma: keep
+#include <cstddef>
 #include <limits>
 #include <optional>
 #include <random>
@@ -66,6 +67,8 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
   Tree tree_insertion_;
 
   FLOAT_T rho_bar_, tau_bar_, zeta_, b_, delta_, max_radius_;
+
+  size_t remaining_{};
   bool disable_rule6_;
 
   void updateHeap(const std::vector<typename detail::Triangulation::FullCellHandle> &inserted,
@@ -114,6 +117,18 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
   friend struct detail::Complete;
 
 public:
+  /// Increments the number of incomplete cells
+  /**
+   * Increments the number of incomplete cells. Used for tracking the progress.
+   */
+  void incrementRemaining() noexcept { remaining_++; }
+
+  /// Decrements the number of incomplete cells
+  /**
+   * Decrements the number of incomplete cells. Used for tracking the progress.
+   */
+  void decrementRemaining() noexcept { remaining_--; }
+
   /// Add a dependency between two full cells
   /**
    * Adds a dependency between two full cells. This means that when the dependency is removed, the dependent will be
@@ -310,7 +325,7 @@ public:
            detail::Complete::kIndex) {
       spdlog::debug("Applying rule {}", std::visit([](const auto &r) { return r.kIndex; }, *rule) + 1);
       std::visit([&](auto &r) { r.apply(*this, queue_.top().full_cell); }, *rule);
-      spdlog::debug("Number of vertices: {}", triangulation_.vertexCount());
+      spdlog::debug("Number of vertices/Incomplete cells remaining: {}/{}", triangulation_.vertexCount(), remaining_);
       callback();
     }
   }
