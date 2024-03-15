@@ -97,17 +97,22 @@ template <unsigned D> struct EDTReader<D>::Impl {
     threshold_image_filter->SetInsideValue(0);
     threshold_image_filter->SetOutsideValue(1);
     threshold_image_filter->SetInput(read_image);
+    threshold_image_filter->ReleaseDataFlagOn();
 
     distance_map_image_filter->SetInput(read_image);
+    distance_map_image_filter->ReleaseDataFlagOn();
 
     not_distance_map_image_filter->SetInput(threshold_image_filter->GetOutput());
+    not_distance_map_image_filter->ReleaseDataFlagOn();
 
     add_image_filter->SetInput1(not_distance_map_image_filter->GetVectorDistanceMap());
     add_image_filter->SetInput2(distance_map_image_filter->GetVectorDistanceMap());
+    add_image_filter->ReleaseDataFlagOn();
     add_image_filter->Update();
 
     subtract_image_filter->SetInput1(not_distance_map_image_filter->GetDistanceMap());
     subtract_image_filter->SetInput2(distance_map_image_filter->GetDistanceMap());
+    subtract_image_filter->ReleaseDataFlagOn();
     subtract_image_filter->Update();
 
     // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
