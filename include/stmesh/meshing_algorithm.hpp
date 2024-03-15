@@ -66,6 +66,7 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
   Tree tree_insertion_;
 
   FLOAT_T rho_bar_, tau_bar_, zeta_, b_, delta_, max_radius_;
+  bool disable_rule6_;
 
   void updateHeap(const std::vector<typename detail::Triangulation::FullCellHandle> &inserted,
                   const std::vector<detail::CellHandle> &removed,
@@ -210,11 +211,13 @@ public:
    * @param delta The maximum size of simplices
    * @param max_radius The maximum radius of a full cell
    * @param seed The seed for the random number generator
+   * @param disable_rule6 Whether to disable rule 6
    */
   MeshingAlgorithm(const Surface &surface, FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T zeta, FLOAT_T b, FLOAT_T delta,
-                   FLOAT_T max_radius, std::optional<typename Random::result_type> seed = std::nullopt)
+                   FLOAT_T max_radius, std::optional<typename Random::result_type> seed = std::nullopt,
+                   bool disable_rule6 = false)
       : triangulation_(calculateBoundingBox(surface, delta)), surface_(surface), gen_(), rho_bar_(rho_bar),
-        tau_bar_(tau_bar), zeta_(zeta), b_(b), delta_(delta), max_radius_(max_radius) {
+        tau_bar_(tau_bar), zeta_(zeta), b_(b), delta_(delta), max_radius_(max_radius), disable_rule6_(disable_rule6) {
     if (seed)
       gen_.seed(*seed);
     for (auto &full_cell : triangulation_) {
@@ -286,6 +289,9 @@ public:
    * @return The first rule that is not satisfied by the full cell
    */
   [[nodiscard]] detail::Rules rulesSatisfied(const typename detail::Triangulation::FullCellHandle &full_cell) noexcept {
+    if (disable_rule6_)
+      return rulesSatisfiedImpl<detail::Rule1, detail::Rule2, detail::Rule3, detail::Rule4, detail::Rule5,
+                                detail::Complete>(full_cell, {});
     return rulesSatisfiedImpl<detail::Rule1, detail::Rule2, detail::Rule3, detail::Rule4, detail::Rule5, detail::Rule6,
                               detail::Complete>(full_cell, {});
   }

@@ -28,7 +28,7 @@ using namespace Catch;
 
 constexpr stmesh::FLOAT_T kEps = std::numeric_limits<stmesh::FLOAT_T>::epsilon();
 
-void verifyMeshingAlgorithm(auto &meshing_algorithm) {
+void verifyMeshingAlgorithm(auto &meshing_algorithm, bool disable_rule6 = false) {
   const stmesh::detail::Triangulation &triangulation = meshing_algorithm.triangulation();
   std::array<stmesh::detail::Rules, 7> rule_list{
       stmesh::detail::Rule1{}, stmesh::detail::Rule2{}, stmesh::detail::Rule3{},   stmesh::detail::Rule4{},
@@ -50,7 +50,8 @@ void verifyMeshingAlgorithm(auto &meshing_algorithm) {
     REQUIRE((**it).full_cell == full_cell_handle);
     const auto rule_index = static_cast<size_t>(std::visit([](const auto &r) { return r.kIndex; }, (**it).rule));
     const unsigned rule_priority = std::visit([](const auto &r) { return r.priority(); }, (**it).rule);
-    if (rule_index != stmesh::detail::Complete::kIndex) {
+    if (rule_index != stmesh::detail::Complete::kIndex ||
+        (disable_rule6 && rule_index == stmesh::detail::Rule6::kIndex)) {
       if (!std::visit([&](auto &r) { return r.check(meshing_algorithm, full_cell_handle, true); },
                       rule_list.at(rule_index)))
         WARN("Issue!");
@@ -58,7 +59,7 @@ void verifyMeshingAlgorithm(auto &meshing_algorithm) {
                          rule_list.at(rule_index)));
       REQUIRE(std::visit([&](auto &r) { return r.priority(); }, rule_list.at(rule_index)) == rule_priority);
     }
-    for (size_t i = 0; i < rule_index; ++i) {
+    for (size_t i = 0; i < rule_index - (disable_rule6 && rule_index >= stmesh::detail::Rule6::kIndex); ++i) {
       if (!std::visit([&](auto &r) { return !r.check(meshing_algorithm, full_cell_handle, true); }, rule_list.at(i)))
         WARN("Issue!");
       REQUIRE(
@@ -309,7 +310,7 @@ TEST_CASE("End to end sphere meshing", "[sphere_meshing][meshing_algorithm]") {
       stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
   stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(1e-6),
                                              stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(0.15),
-                                             stmesh::FLOAT_T(0.12));
-  meshing_algorithm.triangulate([&] { verifyMeshingAlgorithm(meshing_algorithm); });
+                                             stmesh::FLOAT_T(0.12), std::nullopt, true);
+  meshing_algorithm.triangulate([&] { verifyMeshingAlgorithm(meshing_algorithm, true); });
 }
 // NOLINTEND(misc-include-cleaner)
