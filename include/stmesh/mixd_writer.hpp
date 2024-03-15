@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <spdlog/spdlog.h>
+
 #include "boundary_region_manager.hpp" // IWYU pragma: keep
 #include "geometric_simplex.hpp"
 #include "sdf.hpp"
@@ -23,7 +25,8 @@ void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::pa
                const std::filesystem::path &mien_file, const std::filesystem::path &mrng_file, size_t number_elements,
                size_t number_nodes);
 
-std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Vector4F> &vertices);
+std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Vector4F> &vertices,
+                                stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time);
 
 std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view extension,
                                    const std::vector<std::array<size_t, 5>> &full_cell_vertex_ids);
@@ -47,12 +50,14 @@ bool positivePentatopeElementDet(const std::array<size_t, 5> &vertex_ids, const 
  * @param triangulation The triangulation to write to the MIXD file.
  * @param boundary_region_manager The boundary region manager to use to determine the boundary regions of the faces of
  * the mesh.
+ * @param scale The scale for the mxyz file. Defaults to 1.
+ * @param min_time The minimum time of the triangulation for offsetting the mxyz file. Defaults to 0.
  * @tparam ExtraData The type of extra data stored in the triangulation.
  */
 template <typename ExtraData>
 void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unused]] const SurfaceAdapter4 auto &surface,
-               const Triangulation<ExtraData> &triangulation,
-               const BoundaryRegionManager auto &boundary_region_manager) {
+               const Triangulation<ExtraData> &triangulation, const BoundaryRegionManager auto &boundary_region_manager,
+               stmesh::FLOAT_T scale = 1, stmesh::FLOAT_T min_time = 0) {
   std::unordered_map<Vector4F, size_t, Vector4FHash> vertex_map;
   std::vector<Vector4F> vertices;
   std::vector<std::array<size_t, 5>> full_cell_vertex_ids;
@@ -99,7 +104,7 @@ void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unuse
       full_cell_face_ids.emplace_back(face_boundary_ids);
     }
   }
-  std::filesystem::path mxyz_file = detail::writeMxyz(file, vertices);
+  std::filesystem::path mxyz_file = detail::writeMxyz(file, vertices, scale, min_time);
   std::filesystem::path mien_file = detail::writeIntMixd(file, ".mien", full_cell_vertex_ids);
   std::filesystem::path mrng_file = detail::writeIntMixd(file, ".mrng", full_cell_face_ids);
   detail::writeMinf(file, mxyz_file, mien_file, mrng_file, full_cell_vertex_ids.size(), vertices.size());

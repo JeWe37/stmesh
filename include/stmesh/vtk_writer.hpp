@@ -39,7 +39,7 @@ public:
 class PolyhedraStorage {
 public:
   CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel> polyhedron_;
-  std::vector<vtkIdType> pointIds_;
+  std::vector<vtkIdType> point_ids_;
   size_t polyhedron_id_;
 
   PolyhedraStorage(const CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel> &polyhedron,
@@ -57,8 +57,8 @@ computePolyhedra(const std::vector<Eigen::Hyperplane<FLOAT_T, 4>> &planes,
   std::vector<detail::PointStorage> points(n_positions);
   size_t full_cell_id = 0;
   for (const auto &full_cell : triangulation) {
-    std::vector<Vector4F> vertices;
-    std::transform(full_cell.vertices_begin(), full_cell.vertices_end(), std::back_inserter(vertices),
+    std::array<Vector4F, 5> vertices;
+    std::transform(full_cell.vertices_begin(), full_cell.vertices_end(), vertices.begin(),
                    [](const auto &vertex) -> Vector4F {
                      const auto &point = vertex->point();
                      return Vector4F{static_cast<FLOAT_T>(point[0]), static_cast<FLOAT_T>(point[1]),
@@ -134,7 +134,8 @@ computePolygons(const std::vector<Eigen::Hyperplane<FLOAT_T, 4>> &planes,
 void writeVTUFile(const std::filesystem::path &directory, const std::string_view &name_format, FLOAT_T dt,
                   const std::vector<std::vector<detail::PolyhedraStorage>> &polyhedra,
                   const std::vector<detail::PointStorage> &points, const std::string_view &out_coord_format,
-                  size_t block_pos, size_t n_positions, FLOAT_T start_time);
+                  stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time, size_t block_pos, size_t n_positions,
+                  FLOAT_T start_time);
 
 void writeVTPFile(const std::filesystem::path &directory, const std::string_view &name_format,
                   const std::vector<std::vector<detail::PolyhedraStorage>> &polygons,
@@ -164,6 +165,8 @@ void writeVTPFile(const std::filesystem::path &directory, const std::string_view
  * @param dt The time step for the VTK output.
  * @param surface The surface adapter to use to determine which full cells to write to the VTK file.
  * @param triangulation The triangulation to write to the VTK file.
+ * @param scale The scale for the output coord files. Defaults to 1.
+ * @param min_time The minimum time of the triangulation for offsetting the output coord files. Defaults to 0.
  * @param vtp_name_format The format string for the VTP file names. This format string should contain a single {} which
  * will be replaced with the time step number. If empty, no VTP file will be written.
  * @param boundary_region_manager The boundary region manager to use to determine the boundary regions of the faces of
@@ -176,8 +179,9 @@ void writeVTPFile(const std::filesystem::path &directory, const std::string_view
 template <typename ExtraData, BoundaryRegionManager BoundaryManager = NoopBoundaryManager>
 void writeVTU(const std::filesystem::path &directory, std::string_view name_format, FLOAT_T dt,
               [[maybe_unused]] const SurfaceAdapter4 auto &surface, const Triangulation<ExtraData> &triangulation,
-              const std::string_view &vtp_name_format = "", const BoundaryManager &boundary_region_manager = {},
-              const std::string_view &out_coord_format = "", size_t blocks = 1) {
+              stmesh::FLOAT_T scale = 1, stmesh::FLOAT_T min_time = 0, const std::string_view &vtp_name_format = "",
+              const BoundaryManager &boundary_region_manager = {}, const std::string_view &out_coord_format = "",
+              size_t blocks = 1) {
   FLOAT_T time_step = triangulation.boundingBox().sizes()[3] / blocks;
   FLOAT_T dt_per_step = time_step / dt;
   std::vector<std::tuple<size_t, size_t, FLOAT_T>> blocks_info;
@@ -202,8 +206,8 @@ void writeVTU(const std::filesystem::path &directory, std::string_view name_form
     {
       const auto [polyhedra, points] =
           detail::computePolyhedra(planes, triangulation, surface, start_time, dt, n_positions);
-      detail::writeVTUFile(directory, name_format, dt, polyhedra, points, out_coord_format, block_pos, n_positions,
-                           start_time);
+      detail::writeVTUFile(directory, name_format, dt, polyhedra, points, out_coord_format, scale, min_time, block_pos,
+                           n_positions, start_time);
     }
     if (!vtp_name_format.empty()) {
       const auto [polygons, points] =

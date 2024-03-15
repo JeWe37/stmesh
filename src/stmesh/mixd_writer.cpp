@@ -30,12 +30,14 @@ void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::pa
   out << "mrng " << mrng_file.string() << "\n";
 }
 
-std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Vector4F> &vertices) {
+std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Vector4F> &vertices,
+                                stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time) {
   file.replace_extension(".mxyz");
   std::ofstream out(file);
   for (const auto &vertex : vertices) {
-    for (const auto &coord : vertex) {
-      auto coordinate_bytes = std::bit_cast<std::array<char, sizeof(FLOAT_T)>>(coord);
+    for (Eigen::Index i = 0; i < 4; ++i) {
+      auto coordinate_bytes =
+          std::bit_cast<std::array<char, sizeof(FLOAT_T)>>((vertex[i] - (i == 3 ? min_time : FLOAT_T())) * scale);
       if constexpr (std::endian::native != std::endian::big)
         std::reverse(coordinate_bytes.begin(), coordinate_bytes.end());
       out.write(coordinate_bytes.data(), sizeof(FLOAT_T));

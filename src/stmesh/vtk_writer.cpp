@@ -43,7 +43,7 @@ PolyhedraStorage::PolyhedraStorage(
   for (auto it_vert = polyhedron.vertices_begin(); it_vert != polyhedron.vertices_end(); ++it_vert) {
     const auto &vertex = it_vert->point();
     const Vector3F point{vertex.x(), vertex.y(), vertex.z()};
-    pointIds_.push_back(points.insert(point));
+    point_ids_.push_back(points.insert(point));
   }
 }
 
@@ -60,14 +60,17 @@ void writeRaw(const std::filesystem::path &file, const std::vector<double> &valu
 void writeVTUFile(const std::filesystem::path &directory, const std::string_view &name_format, FLOAT_T dt,
                   const std::vector<std::vector<detail::PolyhedraStorage>> &polyhedra,
                   const std::vector<detail::PointStorage> &points, const std::string_view &out_coord_format,
-                  size_t block_pos, size_t n_positions, FLOAT_T start_time) {
+                  stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time, size_t block_pos, size_t n_positions,
+                  FLOAT_T start_time) {
   for (size_t i = 0; i < n_positions; ++i) {
     if (!out_coord_format.empty()) {
       const FLOAT_T time = static_cast<FLOAT_T>(i) * dt + start_time;
       std::vector<double> raw_point_data(points[i].positions_.size() * 4);
       for (const vtkIdType id : points[i].positions_ | std::views::values) {
         points[i].points_->GetPoint(id, &raw_point_data[static_cast<size_t>(id * 4)]);
-        raw_point_data[static_cast<size_t>(id * 4 + 3)] = time;
+        raw_point_data[static_cast<size_t>(id * 4 + 3)] = time - min_time;
+        for (size_t j = 0; j < 4; ++j)
+          raw_point_data[static_cast<size_t>(id) * 4 + j] *= scale;
       }
       detail::writeRaw(directory / fmt::vformat(out_coord_format, fmt::make_format_args(block_pos + i)),
                        raw_point_data);
@@ -95,8 +98,8 @@ void writeVTUFile(const std::filesystem::path &directory, const std::string_view
         }
         num_facets++;
       }
-      const vtkIdType id = grid->InsertNextCell(VTK_POLYHEDRON, static_cast<vtkIdType>(polyhedron.pointIds_.size()),
-                                                polyhedron.pointIds_.data(), num_facets, faces->GetPointer(0));
+      const vtkIdType id = grid->InsertNextCell(VTK_POLYHEDRON, static_cast<vtkIdType>(polyhedron.point_ids_.size()),
+                                                polyhedron.point_ids_.data(), num_facets, faces->GetPointer(0));
       id_array->InsertTuple1(id, static_cast<double>(polyhedron.polyhedron_id_));
       random_array->InsertTuple1(id, static_cast<double>(std::mt19937(polyhedron.polyhedron_id_)()));
     }
