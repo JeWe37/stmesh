@@ -1,7 +1,9 @@
 #include "stmesh/geometric_simplex.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <cstddef>
 #include <limits>
 #include <utility>
 #include <vector>
@@ -10,6 +12,7 @@
 #include <CGAL/Epick_d.h>
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polyhedron_3.h>
+#include <CGAL/Polyhedron_incremental_builder_3.h>
 #include <CGAL/convex_hull_3.h>
 #include <Eigen/Core>
 
@@ -109,7 +112,7 @@ requires(N == 2)
 template <unsigned D, unsigned N>
 [[nodiscard]] CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel>
 GeometricSimplex<D, N>::planeCut(const Eigen::Hyperplane<FLOAT_T, static_cast<int>(D)> &plane) const
-requires(D == 4 && N == 5)
+requires(D == 4 && N >= 4)
 {
   using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
   std::vector<Kernel::Point_3> points;
@@ -122,8 +125,49 @@ requires(D == 4 && N == 5)
       points.emplace_back(point[0], point[1], point[2]);
     }
   }
-  CGAL::Polyhedron_3<Kernel> result;
-  CGAL::convex_hull_3(points.begin(), points.end(), result);
+  CGAL::Polyhedron_3<Kernel> result{};
+  if constexpr (N == 5)
+    CGAL::convex_hull_3(points.begin(), points.end(), result);
+  else {
+    if (points.size() >= 4) {
+      for (size_t i = 0; i < points.size(); ++i) {
+        for (size_t j = 0; j < points.size(); ++j) {
+          constexpr double kEps = 1e-6;
+          if (i != j && Kernel().compute_squared_distance_3_object()(points[i], points[j]) < kEps) {
+            points.erase(points.begin() + static_cast<std::vector<Kernel::Point_3>::difference_type>(j));
+            --j;
+            if (i > j)
+              --i;
+          }
+        }
+      }
+    }
+    if (points.size() == 4) {
+      Eigen::Matrix<FLOAT_T, 3, 4> matrix;
+      for (unsigned i = 0; i < 4; ++i)
+        std::copy(points[i].cartesian_begin(), points[i].cartesian_end(), matrix.col(i).begin());
+      const Eigen::JacobiSVD<Eigen::Matrix<FLOAT_T, 3, 3>> svd(
+          matrix(Eigen::all, Eigen::seq(Eigen::fix<1>, Eigen::last)).colwise() - matrix.col(0), Eigen::ComputeFullU);
+      const Eigen::Matrix<FLOAT_T, 3, 2> projection = svd.matrixU().leftCols(2);
+      const Eigen::Vector<FLOAT_T, 2> center = (projection.transpose() * matrix).rowwise().mean();
+      std::array<Eigen::Vector<FLOAT_T, 3>, 4> sorted;
+      std::ranges::copy(matrix.colwise(), sorted.begin());
+      std::ranges::sort(sorted, {}, [&](const Eigen::Vector<FLOAT_T, 3> &vec) {
+        const Eigen::Vector<FLOAT_T, 2> centered = (projection.transpose() * vec).colwise() - center;
+        return std::atan2(centered[1], centered[0]);
+      });
+      CGAL::Polyhedron_incremental_builder_3<CGAL::Polyhedron_3<Kernel>::HalfedgeDS> builder(result.hds());
+      builder.begin_surface(4, 1);
+      for (const auto &point : sorted)
+        builder.add_vertex(Kernel::Point_3(point[0], point[1], point[2]));
+      builder.begin_facet();
+      for (size_t i = 0; i < 4; ++i)
+        builder.add_vertex_to_facet(i);
+      builder.end_facet();
+      builder.end_surface();
+    } else if (points.size() == 3)
+      result.make_triangle(points[0], points[1], points[2]);
+  }
   return result;
 }
 

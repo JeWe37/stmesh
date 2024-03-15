@@ -14,13 +14,16 @@
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polyhedron_3.h>
 #include <fmt/core.h>
+#include <vtkCellArray.h>
 #include <vtkCellData.h>
 #include <vtkCellType.h>
 #include <vtkIntArray.h>
 #include <vtkNew.h>
 #include <vtkPoints.h>
+#include <vtkPolyData.h>
 #include <vtkType.h>
 #include <vtkUnstructuredGrid.h>
+#include <vtkXMLPolyDataWriter.h>
 #include <vtkXMLUnstructuredGridWriter.h>
 
 #include "stmesh/utility.hpp"
@@ -102,6 +105,45 @@ void writeVTUFile(const std::filesystem::path &directory, const std::string_view
     const vtkNew<vtkXMLUnstructuredGridWriter> writer;
     writer->SetFileName((directory / fmt::vformat(name_format, fmt::make_format_args(block_pos + i))).c_str());
     writer->SetInputData(grid);
+    writer->SetDataModeToBinary();
+    writer->Write();
+  }
+}
+
+void writeVTPFile(const std::filesystem::path &directory, const std::string_view &name_format,
+                  const std::vector<std::vector<detail::PolyhedraStorage>> &polygons,
+                  const std::vector<detail::PointStorage> &points, size_t block_pos, size_t n_positions,
+                  bool write_boundary_ids) {
+
+  for (size_t i = 0; i < n_positions; ++i) {
+    const vtkNew<vtkPolyData> poly_data;
+    const vtkNew<vtkCellArray> polys;
+    poly_data->SetPoints(points[i].points_);
+    const vtkNew<vtkIntArray> id_array;
+    if (write_boundary_ids) {
+      id_array->SetName("Boundary ID");
+      id_array->SetNumberOfTuples(static_cast<vtkIdType>(polygons[i].size()));
+    }
+    for (const auto &polygon : polygons[i]) {
+      auto it = polygon.polyhedron_.facets_begin();
+      auto it_halfedge = it->facet_begin();
+      std::vector<vtkIdType> face;
+      for (size_t j = 0; j < it->facet_degree(); ++j) {
+        auto pt = it_halfedge->vertex()->point();
+        const Vector3F point{static_cast<FLOAT_T>(pt.x()), static_cast<FLOAT_T>(pt.y()), static_cast<FLOAT_T>(pt.z())};
+        face.push_back(points[i].positions_.at(point));
+        it_halfedge++;
+      }
+      const vtkIdType id = polys->InsertNextCell(static_cast<vtkIdType>(face.size()), face.data());
+      if (write_boundary_ids)
+        id_array->InsertTuple1(id, static_cast<double>(polygon.polyhedron_id_));
+    }
+    poly_data->SetPolys(polys);
+    if (write_boundary_ids)
+      poly_data->GetCellData()->AddArray(id_array);
+    const vtkNew<vtkXMLPolyDataWriter> writer;
+    writer->SetFileName((directory / fmt::vformat(name_format, fmt::make_format_args(block_pos + i))).c_str());
+    writer->SetInputData(poly_data);
     writer->SetDataModeToBinary();
     writer->Write();
   }

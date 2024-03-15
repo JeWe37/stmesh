@@ -55,6 +55,11 @@ int main(int argc, const char **argv) {
         ->default_val("")
         ->needs(vtk_output_dir_option);
 
+    std::string vtk_output_vtp_format;
+    app.add_option("--vtk-output-vtp-format", vtk_output_vtp_format, "Format string for the vtp output files")
+        ->default_val("")
+        ->needs(vtk_output_dir_option);
+
     size_t vtk_output_blocks;
     app.add_option("--vtk-output-blocks", vtk_output_blocks, "Number of blocks for vtk output")
         ->default_val(1)
@@ -131,8 +136,14 @@ int main(int argc, const char **argv) {
 
       if (vtk_output_dir) {
         spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
-        stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, surface_adapter,
-                         meshing_algorithm.triangulation(), vtk_out_coord_format, vtk_output_blocks);
+        if (use_edt_file_boundary_regions)
+          stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, surface_adapter,
+                           meshing_algorithm.triangulation(), vtk_output_vtp_format, *edt_reader, vtk_out_coord_format,
+                           vtk_output_blocks);
+        else
+          stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, surface_adapter,
+                           meshing_algorithm.triangulation(), vtk_output_vtp_format, hypercube_boundary_manager,
+                           vtk_out_coord_format, vtk_output_blocks);
       }
       if (mixd_output_file) {
         spdlog::info("Writing MIXD files to {}...", mixd_output_file->string());

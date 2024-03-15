@@ -8,6 +8,8 @@
 #include "stmesh/utility.hpp"
 
 namespace stmesh {
+size_t NoopBoundaryManager::findBoundaryRegion(const Vector4F & /* unused */) noexcept { return 0; }
+
 size_t HypercubeBoundaryManager::addBoundaryRegion(const HyperCube4 &boundary_region) {
   boundary_regions_.emplace_back(boundary_region);
   return boundary_regions_.size() + 1;
