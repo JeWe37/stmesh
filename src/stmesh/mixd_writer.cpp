@@ -58,4 +58,24 @@ std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view 
   }
   return file;
 }
+
+bool positivePentatopeElementDet(const std::array<size_t, 5> &vertex_ids, const std::vector<Vector4F> &vertices) {
+  Vector4F xr1 = vertices[vertex_ids[0]] - vertices[vertex_ids[4]];
+  Vector4F xr2 = vertices[vertex_ids[1]] - vertices[vertex_ids[4]];
+  Vector4F xr3 = vertices[vertex_ids[2]] - vertices[vertex_ids[4]];
+  Vector4F xr4 = vertices[vertex_ids[3]] - vertices[vertex_ids[4]];
+
+  const double cf11 = +xr4[3] * (xr2[1] * xr3[2] - xr3[1] * xr2[2]) - xr4[2] * (xr2[1] * xr3[3] - xr3[1] * xr2[3]) +
+                      xr4[1] * (xr2[2] * xr3[3] - xr3[2] * xr2[3]);
+  const double cf12 = -xr4[3] * (xr1[1] * xr3[2] - xr3[1] * xr1[2]) + xr4[2] * (xr1[1] * xr3[3] - xr3[1] * xr1[3]) -
+                      xr4[1] * (xr1[2] * xr3[3] - xr3[2] * xr1[3]);
+  const double cf13 = +xr4[3] * (xr1[1] * xr2[2] - xr2[1] * xr1[2]) - xr4[2] * (xr1[1] * xr2[3] - xr2[1] * xr1[3]) +
+                      xr4[1] * (xr1[2] * xr2[3] - xr2[2] * xr1[3]);
+  const double cf14 = -xr3[3] * (xr1[1] * xr2[2] - xr2[1] * xr1[2]) + xr3[2] * (xr1[1] * xr2[3] - xr2[1] * xr1[3]) -
+                      xr3[1] * (xr1[2] * xr2[3] - xr2[2] * xr1[3]);
+
+  const double dettmp = xr1[0] * cf11 + xr2[0] * cf12 + xr3[0] * cf13 + xr4[0] * cf14;
+
+  return dettmp > FLOAT_T();
+}
 } // namespace stmesh::detail

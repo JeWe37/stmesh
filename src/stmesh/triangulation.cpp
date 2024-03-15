@@ -238,6 +238,11 @@ template <typename ExtraData>
 }
 
 template <typename ExtraData>
+[[nodiscard]] bool Triangulation<ExtraData>::isInfinite(FullCellConstHandle full_cell) const noexcept {
+  return triangulation_.is_infinite(full_cell);
+}
+
+template <typename ExtraData>
 [[nodiscard]] const Eigen::AlignedBox<FLOAT_T, 4> &Triangulation<ExtraData>::boundingBox() const noexcept {
   return bounding_box_;
 }

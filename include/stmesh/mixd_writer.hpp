@@ -27,6 +27,8 @@ std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Ve
 
 std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view extension,
                                    const std::vector<std::array<size_t, 5>> &full_cell_vertex_ids);
+
+bool positivePentatopeElementDet(const std::array<size_t, 5> &vertex_ids, const std::vector<Vector4F> &vertices);
 } // namespace detail
 
 /// Write a MIXD file from a triangulation
@@ -67,6 +69,11 @@ void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unuse
           vertices.emplace_back(simplex.vertices().col(i));
         vertex_ids.at(static_cast<size_t>(i)) = it->second;
       }
+      if (!detail::positivePentatopeElementDet(vertex_ids, vertices)) {
+        spdlog::warn("Pentatope has negative determinant! Mesh will be tangled.");
+        break;
+      }
+      std::ranges::transform(vertex_ids, vertex_ids.begin(), [&](size_t idx) { return idx + 1; });
       full_cell_vertex_ids.emplace_back(vertex_ids);
       std::array<size_t, 5> face_boundary_ids{};
       std::array<size_t, 5> vertex_boundary_ids{};
@@ -78,11 +85,15 @@ void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unuse
       std::partial_sort(
           vertex_boundary_idxs.begin(), vertex_boundary_idxs.begin() + 2, vertex_boundary_idxs.end(),
           [&](size_t lhs, size_t rhs) { return vertex_boundary_ids.at(lhs) > vertex_boundary_ids.at(rhs); });
+      constexpr std::array<size_t, 5> kToOmit{4, 3, 2, 0, 1};
       // first two elements are now first two largest values
       for (size_t i = 0; i < 5; ++i) {
+        size_t j = kToOmit.at(i);
         face_boundary_ids.at(i) =
-            surface.inside(triangulation.fullCellSimplex(cell.neighbor(i)).circumsphere().center()) ? 0
-            : i != vertex_boundary_idxs[0] ? vertex_boundary_ids.at(vertex_boundary_idxs[0])
+            surface.inside(triangulation.fullCellSimplex(cell.neighbor(j)).circumsphere().center()) &&
+                    !triangulation.isInfinite(cell.neighbor(j))
+                ? 0
+            : j != vertex_boundary_idxs[0] ? vertex_boundary_ids.at(vertex_boundary_idxs[0])
                                            : vertex_boundary_ids.at(vertex_boundary_idxs[1]);
       }
       full_cell_face_ids.emplace_back(face_boundary_ids);
