@@ -78,7 +78,7 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
 # Install optional dependecies
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        doxygen graphviz ccache cppcheck python-is-python3
+        doxygen graphviz ccache cppcheck python-is-python3 rr
 
 # Install include-what-you-use
 ENV IWYU /home/iwyu
