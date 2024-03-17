@@ -99,6 +99,17 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
         libcgal-dev libvtk9-dev libfftw3-dev patch
 
+# Install mold linker
+ENV MOLD /home/mold
+ENV MOLD_BUILD ${MOLD}/build
+ENV MOLD_SRC ${MOLD}/include-what-you-use
+RUN mkdir -p ${MOLD_BUILD} && \
+    git clone --depth 1 --branch v2.4.0 https://github.com/rui314/mold.git ${MOLD_SRC} && \
+    cd ${MOLD_BUILD} && \
+    cmake -DCMAKE_BUILD_TYPE=Release ${MOLD_SRC} && \
+    cmake --build . --parallel $(nproc) && \
+    cmake --build . --target install
+
 # Add ITK patch to fix compilation error
 COPY itk.patch /opt/itk.patch
 

@@ -124,7 +124,7 @@ macro(stmesh_local_options)
 
   if(stmesh_ENABLE_USER_LINKER)
     include(cmake/Linker.cmake)
-    configure_linker(stmesh_options)
+    stmesh_configure_linker(stmesh_options)
   endif()
 
   include(cmake/Sanitizers.cmake)
