@@ -23,6 +23,9 @@ macro(stmesh_enable_cppcheck WARNINGS_AS_ERRORS CPPCHECK_OPTIONS)
           --suppress=unmatchedSuppression
           # noisy and incorrect sometimes
           --suppress=passedByValue
+          # redundant and noisy
+          --suppress=constStatement
+          --suppress=missingReturn
           # ignores code that cppcheck thinks is invalid C++
           --suppress=syntaxError
           --suppress=preprocessorErrorDirective

@@ -1,6 +1,6 @@
 #include <cstdlib>
 #include <exception>
-#include <string>
+#include <iterator>
 
 #include <CLI/App.hpp>
 // NOLINTNEXTLINE(misc-include-cleaner)
@@ -18,8 +18,10 @@
 // NOLINTNEXTLINE(bugprone-exception-escape)
 int main(int argc, const char **argv) {
   try {
+    // NOLINTNEXTLINE(misc-const-correctness)
     CLI::App app{fmt::format("{} version {}", stmesh::cmake::project_name, stmesh::cmake::project_version)};
 
+    // NOLINTNEXTLINE(misc-const-correctness)
     bool show_version = false;
     app.add_flag("--version", show_version, "Show version information");
     CLI11_PARSE(app, argc, argv);
@@ -29,11 +31,18 @@ int main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
 
-    constexpr int five = 5;
-    test();
-    test_itk();
-    test_vtk();
-    return factorial(five);
+    const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
+        stmesh::FLOAT_T(100.0),
+        stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
+    // NOLINTBEGIN(*-magic-numbers,misc-const-correctness)
+    stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(1e-2),
+                                               stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(5.0));
+    // NOLINTEND(*-magic-numbers,misc-const-correctness)
+    meshing_algorithm.triangulate();
+    fmt::print("Meshing complete! Number of elements: {}\n",
+               std::distance(meshing_algorithm.triangulation().begin(), meshing_algorithm.triangulation().end()));
+
+    return EXIT_SUCCESS;
   } catch (const std::exception &e) {
     spdlog::error("Unhandled exception in main: {}", e.what());
   }

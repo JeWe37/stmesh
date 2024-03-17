@@ -1,7 +1,12 @@
 include(GenerateExportHeader)
 
 
-add_library(stmesh stmesh.cpp)
+add_library(stmesh 
+  geometric_simplex.cpp
+  sdf.cpp
+  triangulation.cpp
+  utility.cpp
+)
 
 
 
@@ -9,13 +14,17 @@ add_library(stmesh::stmesh ALIAS stmesh)
 
 target_link_libraries(stmesh PRIVATE 
   stmesh_options 
-  stmesh_warnings
-  ${VTK_LIBRARIES})
+  stmesh_warnings)
 
 target_link_libraries(stmesh PUBLIC 
+  fmt::fmt
   CGAL::CGAL
   Eigen
-  ${ITK_LIBRARIES})
+  ${ITK_LIBRARIES}
+  ${Boost_INCLUDE_DIRS}
+  ${VTK_LIBRARIES})
+
+target_include_directories(stmesh PUBLIC "${CMAKE_BINARY_DIR}/configured_files/include")
 
 vtk_module_autoinit(
   TARGETS stmesh
@@ -37,4 +46,8 @@ generate_export_header(stmesh EXPORT_FILE_NAME ${PROJECT_BINARY_DIR}/include/stm
 
 if(NOT BUILD_SHARED_LIBS)
   target_compile_definitions(stmesh PUBLIC STMESH_STATIC_DEFINE)
+endif()
+
+if(BUILD_TESTING)
+  target_compile_definitions(stmesh PRIVATE STMESH_TESTING)
 endif()
