@@ -33,15 +33,24 @@ int main(int argc, const char **argv) {
 
     const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
         stmesh::FLOAT_T(30.0),
-        stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
+        stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(30.0)});
     // NOLINTBEGIN(*-magic-numbers,misc-const-correctness)
-    stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(1e-2),
+    stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(0.0005),
                                                stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(5.0));
     // NOLINTEND(*-magic-numbers,misc-const-correctness)
+    // meshing_algorithm.triangulate([&] {
+    //  // NOLINTNEXTLINE(*-magic-numbers)
+    //  if (meshing_algorithm.triangulation().vertexCount() == 3500)
+    //    // NOLINTNEXTLINE(concurrency-mt-unsafe)
+    //    exit(EXIT_FAILURE);
+    //});
     meshing_algorithm.triangulate();
     fmt::print("Meshing complete! Number of elements: {}\n",
                std::distance(meshing_algorithm.triangulation().begin(), meshing_algorithm.triangulation().end()));
 
+    // NOLINTNEXTLINE(*-magic-numbers)
+    stmesh::writeVTU("output", "test_{}.vtu", stmesh::FLOAT_T(0.5), sdf_surface_adapter,
+                     meshing_algorithm.triangulation());
     return EXIT_SUCCESS;
   } catch (const std::exception &e) {
     spdlog::error("Unhandled exception in main: {}", e.what());

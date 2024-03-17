@@ -6,6 +6,7 @@ add_library(stmesh
   sdf.cpp
   triangulation.cpp
   utility.cpp
+  vtk_writer.cpp
 )
 
 
