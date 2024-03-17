@@ -43,7 +43,9 @@
                 "stmesh_ENABLE_CLANG_TIDY": "OFF",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTING": "ON",
+                "stmesh_ENABLE_USER_LINKER": "ON"
             }
         },
         {
@@ -56,7 +58,9 @@
                 "stmesh_ENABLE_CLANG_TIDY": "OFF",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "BUILD_TESTING": "ON",
+                "stmesh_ENABLE_USER_LINKER": "ON"
             }
         },
         {
@@ -68,7 +72,9 @@
                 "ITK_DIR": "/opt/itk-clang-build",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTING": "ON",
+                "stmesh_ENABLE_USER_LINKER": "ON"
             }
         },
         {
@@ -80,7 +86,9 @@
                 "ITK_DIR": "/opt/itk-clang-build",
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo"
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "BUILD_TESTING": "ON",
+                "stmesh_ENABLE_USER_LINKER": "ON"
             }
         }
     ],
