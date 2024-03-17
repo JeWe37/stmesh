@@ -59,6 +59,7 @@ macro(stmesh_setup_options)
     option(stmesh_ENABLE_CPPCHECK "Enable cpp-check analysis" ON)
     option(stmesh_ENABLE_PCH "Enable precompiled headers" OFF)
     option(stmesh_ENABLE_CACHE "Enable ccache" ON)
+    option(stmesh_ENABLE_PROFILING "Enable profiling" OFF)
   endif()
 
   if(NOT PROJECT_IS_TOP_LEVEL)
