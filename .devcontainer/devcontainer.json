@@ -48,7 +48,8 @@
 				"mutantdino.resourcemonitor",
 				"llvm-vs-code-extensions.vscode-clangd",
 				"GitHub.copilot",
-				"ms-vscode.cpptools"
+				"ms-vscode.cpptools",
+				"ms-toolsai.jupyter"
 			]
 		}
 	},
