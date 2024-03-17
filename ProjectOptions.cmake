@@ -79,6 +79,7 @@ macro(stmesh_setup_options)
       stmesh_ENABLE_CACHE)
   endif()
 
+  set(FLOATING_POINT_TYPE "double" CACHE STRING "Floating point type to use")
 endmacro()
 
 macro(stmesh_global_options)

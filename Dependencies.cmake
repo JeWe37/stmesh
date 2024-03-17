@@ -97,4 +97,6 @@ function(stmesh_setup_dependencies)
     add_library(Eigen INTERFACE IMPORTED)
     target_include_directories(Eigen INTERFACE ${Eigen_SOURCE_DIR})
   endif()
+
+  find_package(Boost 1.74.0 REQUIRED)
 endfunction()

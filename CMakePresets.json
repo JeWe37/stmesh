@@ -41,6 +41,7 @@
             "cacheVariables": {
                 "ITK_DIR": "/opt/itk-gcc-build",
                 "stmesh_ENABLE_CLANG_TIDY": "OFF",
+                "stmesh_ENABLE_SANITIZER_UNDEFINED": "OFF",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_BUILD_TYPE": "Debug",
@@ -56,6 +57,7 @@
             "cacheVariables": {
                 "ITK_DIR": "/opt/itk-gcc-build",
                 "stmesh_ENABLE_CLANG_TIDY": "OFF",
+                "stmesh_ENABLE_SANITIZER_UNDEFINED": "OFF",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",

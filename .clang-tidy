@@ -12,8 +12,13 @@ Checks: "*,
         -readability-static-accessed-through-instance,
         -readability-avoid-const-params-in-decls,
         -readability-identifier-length,
+        -readability-braces-around-statements,
+        -hicpp-braces-around-statements,
         -cppcoreguidelines-non-private-member-variables-in-classes,
+        -cppcoreguidelines-avoid-do-while,
         -misc-non-private-member-variables-in-classes,
+        -misc-no-recursion,
+        -bugprone-easily-swappable-parameters
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''

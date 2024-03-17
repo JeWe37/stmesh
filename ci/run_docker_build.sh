@@ -5,6 +5,6 @@ case $1 in
         docker run --user $(id -u ${USER}):$(id -g ${USER}) -v $PWD:/repo -w /repo stmesh-builder /repo/ci/run_build.sh $2
         ;;
     test)
-        docker run --user $(id -u ${USER}):$(id -g ${USER}) -v $PWD:/repo -w /repo/out/build/$2 stmesh-builder ctest
+        docker run --user $(id -u ${USER}):$(id -g ${USER}) -v $PWD:/repo -w /repo stmesh-builder ctest --preset test-$2
         ;;
 esac

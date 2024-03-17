@@ -1,6 +1,8 @@
 #ifndef stmesh_CONFIG_HPP
 #define stmesh_CONFIG_HPP
 
+#include <string_view> 
+
 // this is a basic example of how a CMake configured file might look
 // in this particular case, we are using it to set the version number of our executable
 namespace stmesh::cmake {
@@ -11,6 +13,7 @@ inline constexpr int project_version_minor { @PROJECT_VERSION_MINOR@ };
 inline constexpr int project_version_patch { @PROJECT_VERSION_PATCH@ };
 inline constexpr int project_version_tweak { @PROJECT_VERSION_TWEAK@ };
 inline constexpr std::string_view git_sha = "@GIT_SHA@";
-}// namespace stmesh::cmake
+using FLOATING_POINT_TYPE = @FLOATING_POINT_TYPE@;
+} // namespace stmesh::cmake
 
 #endif
