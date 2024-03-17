@@ -17,7 +17,9 @@
 	"runArgs": [
 		"--cap-add=SYS_PTRACE",
 		"--security-opt",
-		"seccomp=unconfined"
+		"seccomp=unconfined",
+		"--ulimit",
+		"nofile=1024:4096"
 	],
 	"customizations": {
 		"vscode": {
@@ -38,7 +40,8 @@
 				"ms-python.vscode-pylance",
 				"mutantdino.resourcemonitor",
 				"llvm-vs-code-extensions.vscode-clangd",
-				"GitHub.copilot"
+				"GitHub.copilot",
+				"ms-vscode.cpptools"
 			]
 		}
 	},
