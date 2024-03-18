@@ -9,6 +9,7 @@
 #include "surface_adapters.hpp"
 #include "triangulation.hpp"
 #include "utility.hpp"
+#include "vtk_writer.hpp"
 // IWYU pragma: end_exports
 
 #endif

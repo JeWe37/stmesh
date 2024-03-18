@@ -4,7 +4,7 @@
 #include <array>
 #include <concepts> // IWYU pragma: keep
 
-#include <CGAL/Cartesian.h>
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/convex_hull_3.h>
 #include <Eigen/Core>
@@ -69,10 +69,11 @@ public:
     return result;
   }
 
-  [[nodiscard]] Eigen::ParametrizedLine<FLOAT_T, static_cast<int>(D)> toParameterizedLine() const noexcept
+  [[nodiscard]] std::pair<Eigen::ParametrizedLine<FLOAT_T, static_cast<int>(D)>, FLOAT_T>
+  toParameterizedLine() const noexcept
   requires(N == 2);
 
-  [[nodiscard]] CGAL::Polyhedron_3<CGAL::Cartesian<FLOAT_T>>
+  [[nodiscard]] CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel>
   planeCut(const Eigen::Hyperplane<FLOAT_T, static_cast<int>(D)> &plane) const
       // NOLINTNEXTLINE(*-magic-numbers)
   requires(D == 4 && N == 5);

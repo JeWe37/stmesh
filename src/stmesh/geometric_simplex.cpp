@@ -1,5 +1,4 @@
 // NOLINTBEGIN(misc-include-cleaner)
-#include <CGAL/Lazy.h>
 #include <stmesh/geometric_simplex.hpp>
 
 #include <algorithm>
@@ -92,27 +91,28 @@ requires(D == N)
 }
 
 template <unsigned D, unsigned N>
-[[nodiscard]] Eigen::ParametrizedLine<FLOAT_T, static_cast<int>(D)>
+[[nodiscard]] std::pair<Eigen::ParametrizedLine<FLOAT_T, static_cast<int>(D)>, FLOAT_T>
 GeometricSimplex<D, N>::toParameterizedLine() const noexcept
 requires(N == 2)
 {
-  return Eigen::ParametrizedLine<FLOAT_T, static_cast<int>(D)>::Through(vertices_.col(0), vertices_.col(1));
+  return {Eigen::ParametrizedLine<FLOAT_T, static_cast<int>(D)>::Through(vertices_.col(0), vertices_.col(1)),
+          (vertices_.col(0) - vertices_.col(1)).norm()};
 }
 
 // TODO: this is cheating. also hard assuming planes with normal in direction of 4th axis
 template <unsigned D, unsigned N>
-[[nodiscard]] CGAL::Polyhedron_3<CGAL::Cartesian<FLOAT_T>>
+[[nodiscard]] CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel>
 GeometricSimplex<D, N>::planeCut(const Eigen::Hyperplane<FLOAT_T, static_cast<int>(D)> &plane) const
     // NOLINTNEXTLINE(*-magic-numbers)
 requires(D == 4 && N == 5)
 {
-  using Kernel = CGAL::Cartesian<FLOAT_T>;
+  using Kernel = CGAL::Exact_predicates_inexact_constructions_kernel;
   std::vector<Kernel::Point_3> points;
   auto edges = subSimplices<2>();
   for (const auto &edge : edges) {
-    auto line = edge.toParameterizedLine();
+    auto [line, factor] = edge.toParameterizedLine();
     const FLOAT_T lambda = line.intersectionParameter(plane);
-    if (lambda <= FLOAT_T{1} && lambda >= FLOAT_T{0}) {
+    if (lambda <= factor && lambda >= FLOAT_T{0}) {
       VectorF<D> point = line.pointAt(lambda);
       points.emplace_back(point[0], point[1], point[2]);
     }

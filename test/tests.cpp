@@ -6,6 +6,7 @@
 #include "stmesh/surface_adapters.hpp"
 #include "stmesh/triangulation.hpp"
 #include "stmesh/utility.hpp"
+#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polyhedron_3.h>
 #include <Eigen/src/Geometry/Hyperplane.h>
 #include <algorithm>
@@ -506,7 +507,7 @@ TEST_CASE("Test 4-simplex in 4D", "[4simplex][geometric_simplex]") {
                                   stmesh::FLOAT_T(1.0)};
     const stmesh::Vector4F point{0.0, 0.0, 0.0, stmesh::FLOAT_T(0.5)};
     const Eigen::Hyperplane<stmesh::FLOAT_T, 4> plane{normal, point};
-    const CGAL::Polyhedron_3<CGAL::Cartesian<stmesh::FLOAT_T>> polyhedron = simplex.planeCut(plane);
+    const CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel> polyhedron = simplex.planeCut(plane);
     std::vector<stmesh::Vector3F> vertices;
     std::transform(polyhedron.vertices_begin(), polyhedron.vertices_end(), std::back_inserter(vertices),
                    [](const auto &vertex) {
