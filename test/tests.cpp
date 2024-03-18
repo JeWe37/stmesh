@@ -31,7 +31,7 @@
 
 using namespace Catch;
 
-constexpr stmesh::FLOAT_T eps = std::numeric_limits<stmesh::FLOAT_T>::epsilon();
+constexpr stmesh::FLOAT_T kEps = std::numeric_limits<stmesh::FLOAT_T>::epsilon();
 
 TEST_CASE("Factorial is computed", "[factorial][utility]") {
   REQUIRE(stmesh::factorial(0U) == 1U);
@@ -42,18 +42,18 @@ TEST_CASE("Factorial is computed", "[factorial][utility]") {
 }
 
 TEST_CASE("Sqrt is computed", "[sqrt][utility]") {
-  REQUIRE(std::abs(stmesh::sqrt(eps * eps) - eps) < eps);
-  REQUIRE(std::abs(stmesh::sqrt(eps) * stmesh::sqrt(eps) - eps) < eps);
+  REQUIRE(std::abs(stmesh::sqrt(kEps * kEps) - kEps) < kEps);
+  REQUIRE(std::abs(stmesh::sqrt(kEps) * stmesh::sqrt(kEps) - kEps) < kEps);
   REQUIRE(stmesh::sqrt(stmesh::FLOAT_T(0.0)) == stmesh::FLOAT_T(0.0));
   REQUIRE(stmesh::sqrt(stmesh::FLOAT_T(1.0)) == stmesh::FLOAT_T(1.0));
   REQUIRE(stmesh::sqrt(stmesh::FLOAT_T(4.0)) == stmesh::FLOAT_T(2.0));
   REQUIRE(stmesh::sqrt(stmesh::FLOAT_T(16.0)) == stmesh::FLOAT_T(4.0));
   REQUIRE(std::abs(stmesh::sqrt(stmesh::FLOAT_T(2.0)) * stmesh::sqrt(stmesh::FLOAT_T(2.0)) - stmesh::FLOAT_T(2.0)) <
-          stmesh::FLOAT_T(3.0) * eps);
+          stmesh::FLOAT_T(3.0) * kEps);
   REQUIRE(std::abs(stmesh::sqrt(stmesh::FLOAT_T(3.0)) * stmesh::sqrt(stmesh::FLOAT_T(3.0)) - stmesh::FLOAT_T(3.0)) <
-          stmesh::FLOAT_T(3.0) * eps);
+          stmesh::FLOAT_T(3.0) * kEps);
   REQUIRE(std::abs(stmesh::sqrt(stmesh::FLOAT_T(5.0)) * stmesh::sqrt(stmesh::FLOAT_T(5.0)) - stmesh::FLOAT_T(5.0)) <
-          stmesh::FLOAT_T(5.0) * eps);
+          stmesh::FLOAT_T(5.0) * kEps);
 }
 
 TEST_CASE("nChoosek is computed", "[nChoosek][utility]") {
@@ -331,7 +331,7 @@ TEST_CASE("Test hypercube functionality in 4D", "[hypercube][sdf]") {
     REQUIRE((cube.normal({stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(0.0)}) -
              stmesh::Vector4F{stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(0.0)}
                  .normalized())
-                .maxCoeff() < eps);
+                .maxCoeff() < kEps);
   }
 }
 
@@ -361,7 +361,7 @@ TEST_CASE("Test sdf adapter with sphere sdf", "[sdf_adapter][surface_adapter]") 
     REQUIRE((adapter.closestPoint({stmesh::FLOAT_T(0.0), -stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(3.0)}) - center -
              stmesh::Vector3F{stmesh::FLOAT_T(0.0), -1.0, 1.0}.normalized())
                 .cwiseAbs()
-                .maxCoeff() < eps);
+                .maxCoeff() < kEps);
   }
   SECTION("Correctly checks sphere intersection") {
     const auto radius2 = stmesh::FLOAT_T(0.25);
@@ -418,7 +418,7 @@ TEST_CASE("Test 4-simplex in 4D", "[4simplex][geometric_simplex]") {
       const stmesh::HyperSphere<4> circumsphere = simplex.circumsphere();
       for (const stmesh::Vector4F vertex : simplex.vertices().colwise())
         // Catch::Approx does not work well with stmesh::FLOAT_T(0.0)
-        REQUIRE(circumsphere.distance(vertex) < std::sqrt(eps));
+        REQUIRE(circumsphere.distance(vertex) < std::sqrt(kEps));
     }
   }
   SECTION("Correct quality metrics") {
@@ -600,7 +600,7 @@ TEST_CASE("Test 3-simplex in 4D", "[3simplex][geometric_simplex]") {
       const stmesh::HyperSphere<4> circumsphere = simplex.circumsphere();
       for (const stmesh::Vector4F vertex : simplex.vertices().colwise())
         // Catch::Approx does not work well with stmesh::FLOAT_T(0.0)
-        REQUIRE(circumsphere.distance(vertex) < std::sqrt(eps));
+        REQUIRE(circumsphere.distance(vertex) < std::sqrt(kEps));
     }
   }
   SECTION("Correct quality metrics") {
@@ -612,7 +612,7 @@ TEST_CASE("Test 3-simplex in 4D", "[3simplex][geometric_simplex]") {
     REQUIRE((ray.origin() -
              stmesh::Vector4F{stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(0.0)})
                 .cwiseAbs()
-                .maxCoeff() < std::sqrt(eps));
+                .maxCoeff() < std::sqrt(kEps));
     REQUIRE(ray.direction() ==
             stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0)});
   }
@@ -804,9 +804,9 @@ void verifyMeshingAlgorithm(auto &meshing_algorithm) {
         // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
         const_cast<stmesh::detail::Triangulation::FullCell *>(&full_cell)};
     REQUIRE((**it).full_cell == full_cell_handle);
-    const auto rule_index = static_cast<size_t>(std::visit([](const auto &r) { return r.index; }, (**it).rule));
+    const auto rule_index = static_cast<size_t>(std::visit([](const auto &r) { return r.kIndex; }, (**it).rule));
     const unsigned rule_priority = std::visit([](const auto &r) { return r.priority(); }, (**it).rule);
-    if (rule_index != stmesh::detail::Complete::index) {
+    if (rule_index != stmesh::detail::Complete::kIndex) {
       if (!std::visit([&](auto &r) { return r.check(meshing_algorithm, full_cell_handle, true); },
                       rule_list.at(rule_index)))
         WARN("Issue!");
@@ -858,7 +858,7 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
                stmesh::Vector4F{stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(1.0)}
                    .normalized())
                   .cwiseAbs()
-                  .maxCoeff() < 4.0 * eps);
+                  .maxCoeff() < 4.0 * kEps);
       const auto &[full_cell, index_of_covertex] = dependent_neighbor_info;
       for (const auto &vertex_handle : vertex_handles) {
         int i{};
@@ -880,7 +880,7 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
                                                    stmesh::FLOAT_T(1.0)}
                                       .normalized())
                     .cwiseAbs()
-                    .maxCoeff() < 4.0 * eps);
+                    .maxCoeff() < 4.0 * kEps);
       }
 
       SECTION("Test surface ball") {
@@ -929,23 +929,23 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
 
     REQUIRE_FALSE(meshing_algorithm.voronoiDual(points).has_value());
     SECTION("Test 4-simplex picking region sampling") {
-      stmesh::HyperSphere4 pickingRegion = stmesh::GeometricSimplex<4>(points2).circumsphere();
-      pickingRegion.scale(stmesh::FLOAT_T(0.5));
+      stmesh::HyperSphere4 picking_region = stmesh::GeometricSimplex<4>(points2).circumsphere();
+      picking_region.scale(stmesh::FLOAT_T(0.5));
 
       for (int i = 0; i < 100; ++i) {
         const auto [point, radius] = meshing_algorithm.sampleFromPickingRegion(points2);
-        REQUIRE(pickingRegion.signedDistance(point) < stmesh::FLOAT_T(0.0));
-        REQUIRE(radius == pickingRegion.radius());
+        REQUIRE(picking_region.signedDistance(point) < stmesh::FLOAT_T(0.0));
+        REQUIRE(radius == picking_region.radius());
       }
       SECTION("Pick good point from 4-simplex") {
         const auto vertex_handle = meshing_algorithm.pickGoodPoint(points2);
         const auto pt = vertex_handle->point();
         const stmesh::Vector4F point{static_cast<stmesh::FLOAT_T>(pt[0]), static_cast<stmesh::FLOAT_T>(pt[1]),
                                      static_cast<stmesh::FLOAT_T>(pt[2]), static_cast<stmesh::FLOAT_T>(pt[3])};
-        REQUIRE(pickingRegion.signedDistance(point) < stmesh::FLOAT_T(0.0));
+        REQUIRE(picking_region.signedDistance(point) < stmesh::FLOAT_T(0.0));
         REQUIRE(meshing_algorithm.triangulation().isGoodPoint(vertex_handle, stmesh::FLOAT_T(20.0),
                                                               stmesh::FLOAT_T(0.001),
-                                                              stmesh::FLOAT_T(5.0) * pickingRegion.radius()));
+                                                              stmesh::FLOAT_T(5.0) * picking_region.radius()));
         verifyMeshingAlgorithm(meshing_algorithm);
       }
     }
@@ -1045,7 +1045,7 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
         [&]<typename Rule>(const Rule &r) {
           // picking region based rules cannot be tested, picking may not terminate for unbounded aspect ratio
           // similarly, if Complete were applied it would throw an error, so also ignore that
-          if constexpr (Rule::index < stmesh::detail::Rule4::index)
+          if constexpr (Rule::kIndex < stmesh::detail::Rule4::kIndex)
             r.apply(meshing_algorithm, it->full_cell);
         },
         it->rule);

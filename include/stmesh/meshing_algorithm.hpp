@@ -187,8 +187,9 @@ public:
 
   template <typename F = void (*)(void)> void triangulate(const F &callback = [] {}) {
     const detail::Rules *rule = nullptr;
-    while (std::visit([](const auto &r) { return r.index; }, *(rule = &queue_.top().rule)) != detail::Complete::index) {
-      spdlog::info("Applying rule {}", std::visit([](const auto &r) { return r.index; }, *rule) + 1);
+    while (std::visit([](const auto &r) { return r.kIndex; }, *(rule = &queue_.top().rule)) !=
+           detail::Complete::kIndex) {
+      spdlog::info("Applying rule {}", std::visit([](const auto &r) { return r.kIndex; }, *rule) + 1);
       std::visit([&](auto &r) { r.apply(*this, queue_.top().full_cell); }, *rule);
       spdlog::info("Number of vertices: {}", triangulation_.vertexCount());
       callback();
@@ -205,12 +206,12 @@ public:
     Vector4F mirror_vertex0 = triangulation_.pointToVec(facet_mirror_vertex0->point());
 
     GeometricSimplex<4, 4> simplex(vertices);
-    Eigen::ParametrizedLine<FLOAT_T, 4> normalRay = simplex.normalRay();
-    Eigen::ParametrizedLine<FLOAT_T, 4> inverseRay{normalRay.origin(), -normalRay.direction()};
+    Eigen::ParametrizedLine<FLOAT_T, 4> normal_ray = simplex.normalRay();
+    Eigen::ParametrizedLine<FLOAT_T, 4> inverse_ray{normal_ray.origin(), -normal_ray.direction()};
 
     // we swap the rays if normal ray does not already point in the direction of mirror_vertex0, such that it does after
-    if (normalRay.direction().dot(mirror_vertex0 - normalRay.origin()) < 0)
-      std::swap(normalRay, inverseRay);
+    if (normal_ray.direction().dot(mirror_vertex0 - normal_ray.origin()) < 0)
+      std::swap(normal_ray, inverse_ray);
 
     const auto test =
         [&](const Eigen::ParametrizedLine<FLOAT_T, 4> &ray,
@@ -235,10 +236,10 @@ public:
       return std::nullopt;
     };
 
-    if (std::optional result = test(normalRay, existing_side); result)
+    if (std::optional result = test(normal_ray, existing_side); result)
       return result;
     if (optional_side) {
-      if (std::optional result = test(inverseRay, *optional_side); result)
+      if (std::optional result = test(inverse_ray, *optional_side); result)
         return result;
     }
     return std::nullopt;

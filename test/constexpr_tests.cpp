@@ -15,19 +15,19 @@ TEST_CASE("Factorial is computed with constexpr", "[factorial][utility]") {
 }
 
 TEST_CASE("Sqrt is computed with constexpr", "[sqrt][utility]") {
-  constexpr stmesh::FLOAT_T eps = std::numeric_limits<stmesh::FLOAT_T>::epsilon();
-  STATIC_REQUIRE(std::abs(stmesh::sqrt(eps * eps) - eps) < eps);
-  STATIC_REQUIRE(std::abs(stmesh::sqrt(eps) * stmesh::sqrt(eps) - eps) < eps);
+  constexpr stmesh::FLOAT_T kEps = std::numeric_limits<stmesh::FLOAT_T>::epsilon();
+  STATIC_REQUIRE(std::abs(stmesh::sqrt(kEps * kEps) - kEps) < kEps);
+  STATIC_REQUIRE(std::abs(stmesh::sqrt(kEps) * stmesh::sqrt(kEps) - kEps) < kEps);
   STATIC_REQUIRE(stmesh::sqrt(stmesh::FLOAT_T(0.0)) == stmesh::FLOAT_T(0.0));
   STATIC_REQUIRE(stmesh::sqrt(stmesh::FLOAT_T(1.0)) == stmesh::FLOAT_T(1.0));
   STATIC_REQUIRE(stmesh::sqrt(stmesh::FLOAT_T(4.0)) == stmesh::FLOAT_T(2.0));
   STATIC_REQUIRE(stmesh::sqrt(stmesh::FLOAT_T(16.0)) == stmesh::FLOAT_T(4.0));
   STATIC_REQUIRE(std::abs(stmesh::sqrt(stmesh::FLOAT_T(2.0)) * stmesh::sqrt(stmesh::FLOAT_T(2.0)) -
-                          stmesh::FLOAT_T(2.0)) < stmesh::FLOAT_T(3.0) * eps);
+                          stmesh::FLOAT_T(2.0)) < stmesh::FLOAT_T(3.0) * kEps);
   STATIC_REQUIRE(std::abs(stmesh::sqrt(stmesh::FLOAT_T(3.0)) * stmesh::sqrt(stmesh::FLOAT_T(3.0)) -
-                          stmesh::FLOAT_T(3.0)) < stmesh::FLOAT_T(3.0) * eps);
+                          stmesh::FLOAT_T(3.0)) < stmesh::FLOAT_T(3.0) * kEps);
   STATIC_REQUIRE(std::abs(stmesh::sqrt(stmesh::FLOAT_T(5.0)) * stmesh::sqrt(stmesh::FLOAT_T(5.0)) -
-                          stmesh::FLOAT_T(5.0)) < stmesh::FLOAT_T(5.0) * eps);
+                          stmesh::FLOAT_T(5.0)) < stmesh::FLOAT_T(5.0) * kEps);
 }
 
 TEST_CASE("nChoosek is computed with constexpr", "[nChoosek][utility]") {

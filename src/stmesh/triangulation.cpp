@@ -56,15 +56,15 @@ auto Triangulation<ExtraData>::insert(const Vector4F &point, FullCellHandle hint
   // valid since iterators are not invalidated by insert
   // TODO: using hint from kdtree, should test with and without
   // then also wouldn't need closestPoint anymore
-  (vertex_handle_map[point] = triangulation_.insert(p, hint))->data().nonfree_vertex = nonfree_vertex;
+  (vertex_handle_map_[point] = triangulation_.insert(p, hint))->data().nonfree_vertex = nonfree_vertex;
   tree_.insert(bg_point);
-  return vertex_handle_map.at(point);
+  return vertex_handle_map_.at(point);
 }
 
 // deletes surrounding, inserts is complicated, use commit
 template <typename ExtraData> auto Triangulation<ExtraData>::remove(VertexHandle vertex) -> FullCellHandle {
   const Vector4F point = pointToVec(vertex->point());
-  vertex_handle_map.erase(point);
+  vertex_handle_map_.erase(point);
   tree_.remove(pointFromVector(point));
   return triangulation_.remove(vertex);
 }
@@ -140,7 +140,7 @@ template <typename ExtraData>
   auto *iter = vertex_handles.begin();
   for (const auto &vertex : vertices.colwise())
     // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
-    *iter++ = vertex_handle_map.at(vertex);
+    *iter++ = vertex_handle_map_.at(vertex);
   std::vector<FullCellHandle> possible_full_cells;
   triangulation_.incident_full_cells(vertex_handles[0], std::back_inserter(possible_full_cells));
   for (const auto &full_cell : possible_full_cells) {
@@ -169,16 +169,16 @@ template <typename ExtraData>
     -> std::tuple<std::tuple<VertexHandle, int, FullCellHandle>,
                   std::optional<std::tuple<VertexHandle, int, FullCellHandle>>> {
   const FullCellHandle &full_cell = facet.full_cell();
-  const int &covertexIndex = facet.index_of_covertex();
-  const VertexHandle covertex = full_cell->vertex(covertexIndex);
-  const FullCellHandle neighbor_full_cell = full_cell->neighbor(covertexIndex);
-  const int mirror_vertex = triangulation_.tds().mirror_index(full_cell, covertexIndex);
+  const int &covertex_index = facet.index_of_covertex();
+  const VertexHandle covertex = full_cell->vertex(covertex_index);
+  const FullCellHandle neighbor_full_cell = full_cell->neighbor(covertex_index);
+  const int mirror_vertex = triangulation_.tds().mirror_index(full_cell, covertex_index);
   const VertexHandle neighbor_mirror_vertex = neighbor_full_cell->vertex(mirror_vertex);
   if (triangulation_.is_infinite(covertex))
     return {{neighbor_mirror_vertex, mirror_vertex, neighbor_full_cell}, std::nullopt};
   if (triangulation_.is_infinite(neighbor_mirror_vertex))
-    return {{covertex, covertexIndex, full_cell}, std::nullopt};
-  return {{covertex, covertexIndex, full_cell}, std::tuple{neighbor_mirror_vertex, mirror_vertex, neighbor_full_cell}};
+    return {{covertex, covertex_index, full_cell}, std::nullopt};
+  return {{covertex, covertex_index, full_cell}, std::tuple{neighbor_mirror_vertex, mirror_vertex, neighbor_full_cell}};
 }
 
 template <typename ExtraData> [[nodiscard]] size_t Triangulation<ExtraData>::vertexCount() const noexcept {
@@ -194,7 +194,7 @@ template <typename ExtraData>
               boost::make_function_output_iterator([&](const auto &pt) {
                 const Vector4F p = vectorFromPoint(pt);
                 if (sphere.signedDistance(p) < 0)
-                  result.push_back(vertex_handle_map.at(p));
+                  result.push_back(vertex_handle_map_.at(p));
               }));
   return result;
 }
