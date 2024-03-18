@@ -1,4 +1,5 @@
 // NOLINTBEGIN(misc-include-cleaner)
+#include "stmesh/utility.hpp"
 #include <algorithm>
 #include <stmesh/meshing_cell.hpp>
 #include <stmesh/triangulation.hpp>
@@ -8,8 +9,30 @@
 #include <tuple>
 
 #include <boost/heap/fibonacci_heap.hpp>
+#include <boost/iterator.hpp>
 
 namespace stmesh {
+template <typename ExtraData>
+[[nodiscard]] auto Triangulation<ExtraData>::pointFromVector(const Vector4F &vector) noexcept -> BGPoint {
+  BGPoint point;
+  point.set<0>(vector[0]);
+  point.set<1>(vector[1]);
+  point.set<2>(vector[2]);
+  point.set<3>(vector[3]);
+  return point;
+}
+
+template <typename ExtraData>
+[[nodiscard]] auto Triangulation<ExtraData>::vectorFromPoint(const BGPoint &point) noexcept -> Vector4F {
+  return {static_cast<FLOAT_T>(point.get<0>()), static_cast<FLOAT_T>(point.get<1>()),
+          static_cast<FLOAT_T>(point.get<2>()), static_cast<FLOAT_T>(point.get<3>())};
+}
+
+template <typename ExtraData>
+[[nodiscard]] auto Triangulation<ExtraData>::boxFromAABB(const Eigen::AlignedBox<FLOAT_T, 4> &aabb) noexcept -> BGBox {
+  return {pointFromVector(aabb.min()), pointFromVector(aabb.max())};
+}
+
 template <typename ExtraData> [[nodiscard]] Vector4F Triangulation<ExtraData>::pointToVec(const Point &pt) {
   return {static_cast<FLOAT_T>(pt[0]), static_cast<FLOAT_T>(pt[1]), static_cast<FLOAT_T>(pt[2]),
           static_cast<FLOAT_T>(pt[3])};
@@ -29,34 +52,36 @@ Triangulation<ExtraData>::Triangulation(const Eigen::AlignedBox<FLOAT_T, 4> &bou
 template <typename ExtraData>
 auto Triangulation<ExtraData>::insert(const Vector4F &point, FullCellHandle hint, bool nonfree_vertex) -> VertexHandle {
   const Point p(point.begin(), point.end());
+  const BGPoint bg_point = pointFromVector(point);
   // valid since iterators are not invalidated by insert
   // TODO: using hint from kdtree, should test with and without
   // then also wouldn't need closestPoint anymore
   (vertex_handle_map[point] = triangulation_.insert(p, hint))->data().nonfree_vertex = nonfree_vertex;
-  tree_.insert(p);
+  tree_.insert(bg_point);
   return vertex_handle_map.at(point);
 }
 
 // deletes surrounding, inserts is complicated, use commit
 template <typename ExtraData> auto Triangulation<ExtraData>::remove(VertexHandle vertex) -> FullCellHandle {
-  vertex_handle_map.erase(pointToVec(vertex->point()));
-  tree_.remove(vertex->point());
+  const Vector4F point = pointToVec(vertex->point());
+  vertex_handle_map.erase(point);
+  tree_.remove(pointFromVector(point));
   return triangulation_.remove(vertex);
 }
 
 template <typename ExtraData>
 [[nodiscard]] auto Triangulation<ExtraData>::conflictZone(const Vector4F &point, FullCellHandle hint) const
     -> std::vector<FullCellHandle> {
-  std::vector<FullCellHandle> cells;
+  std::vector<FullCellHandle> result;
   const Point p(point.begin(), point.end());
   LocateType loc_type{};
   Face f(3);
   Facet ft;
-  triangulation_.compute_conflict_zone(p, triangulation_.locate(p, loc_type, f, ft, hint), std::back_inserter(cells));
-  std::vector<FullCellHandle> result;
-  result.reserve(cells.size());
-  std::copy_if(cells.begin(), cells.end(), std::back_inserter(result),
-               [&](const auto &cell) { return !triangulation_.is_infinite(cell); });
+  triangulation_.compute_conflict_zone(p, triangulation_.locate(p, loc_type, f, ft, hint),
+                                       boost::make_function_output_iterator([&](const auto &cell) {
+                                         if (!triangulation_.is_infinite(cell))
+                                           result.push_back(cell);
+                                       }));
   return result;
 }
 
@@ -76,16 +101,14 @@ auto Triangulation<ExtraData>::commitUncommitted(FullCellHandle start) -> std::v
 
 template <typename ExtraData>
 auto Triangulation<ExtraData>::surroundingFullCells(VertexHandle vertex, bool commit) -> std::vector<FullCellHandle> {
-  std::vector<FullCellHandle> cells;
-  triangulation_.incident_full_cells(vertex, std::back_inserter(cells));
   std::vector<FullCellHandle> result;
-  result.reserve(cells.size());
-  std::copy_if(cells.begin(), cells.end(), std::back_inserter(result),
-               [&](const auto &cell) { return !triangulation_.is_infinite(cell); });
-  if (commit) {
-    for (const auto &full_cell : result)
-      full_cell->data().committed = true;
-  }
+  triangulation_.incident_full_cells(vertex, boost::make_function_output_iterator([&](const auto &cell) {
+                                       if (!triangulation_.is_infinite(cell)) {
+                                         result.push_back(cell);
+                                         if (commit)
+                                           cell->data().committed = true;
+                                       }
+                                     }));
   return result;
 }
 
@@ -158,16 +181,21 @@ template <typename ExtraData>
   return {{covertex, covertexIndex, full_cell}, std::tuple{neighbor_mirror_vertex, mirror_vertex, neighbor_full_cell}};
 }
 
+template <typename ExtraData> [[nodiscard]] size_t Triangulation<ExtraData>::vertexCount() const noexcept {
+  return triangulation_.number_of_vertices();
+}
+
 template <typename ExtraData>
 [[nodiscard]] auto Triangulation<ExtraData>::verticesInRadius(const Vector4F &point, FLOAT_T radius) const
     -> std::vector<VertexHandle> {
-  const Point p(point.begin(), point.end());
-  std::vector<Point> points;
-  tree_.search(std::back_inserter(points), FuzzySphere(p, radius));
   std::vector<VertexHandle> result;
-  result.reserve(points.size());
-  std::ranges::transform(points, std::back_inserter(result),
-                         [&](const auto &pt) { return vertex_handle_map.at(pointToVec(pt)); });
+  const HyperSphere4 sphere(radius, point);
+  tree_.query(bg::index::intersects(boxFromAABB(sphere.boundingBox())),
+              boost::make_function_output_iterator([&](const auto &pt) {
+                const Vector4F p = vectorFromPoint(pt);
+                if (sphere.signedDistance(p) < 0)
+                  result.push_back(vertex_handle_map.at(p));
+              }));
   return result;
 }
 

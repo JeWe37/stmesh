@@ -51,6 +51,11 @@ target_compile_features(stmesh_options INTERFACE cxx_std_${CMAKE_CXX_STANDARD})
 add_library(stmesh::stmesh_options ALIAS stmesh_options)
 add_library(stmesh::stmesh_warnings ALIAS stmesh_warnings)
 
+if (stmesh_ENABLE_PROFILING)
+  target_compile_options(stmesh_options INTERFACE -pg)
+  target_link_options(stmesh_options INTERFACE -pg)
+endif()
+
 #add_library(stmesh::stmesh_options INTERFACE IMPORTED)
 #add_library(stmesh::stmesh_warnings INTERFACE IMPORTED)
 

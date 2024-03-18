@@ -10,11 +10,16 @@
 
 #include <internal_use_only/config.hpp>
 
+namespace boost::geometry {}
+
 namespace stmesh {
 using FLOAT_T = stmesh::cmake::FLOATING_POINT_TYPE;
 template <unsigned D> using VectorF = Eigen::Vector<FLOAT_T, static_cast<int>(D)>;
 using Vector4F = VectorF<static_cast<unsigned>(4)>;
 using Vector3F = VectorF<static_cast<unsigned>(3)>;
+
+// NOLINTNEXTLINE(misc-unused-alias-decls)
+namespace bg = boost::geometry;
 
 template <typename Scalar, int Rows, int Cols> struct MatrixHash {
   size_t operator()(const Eigen::Matrix<Scalar, Rows, Cols> &matrix) const;

@@ -47,6 +47,9 @@ public:
   [[nodiscard]] VectorF<D> normal(const VectorF<D> &point) const noexcept;
 
   [[nodiscard]] Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> boundingBox() const noexcept;
+
+  // cannot default as base classes do not implement equality comparison
+  bool operator==(const HyperSphere<D> &other) const noexcept;
 };
 
 template <unsigned D> struct ExactSDFTag<HyperSphere<D>> {

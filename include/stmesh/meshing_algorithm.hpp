@@ -9,12 +9,14 @@
 #include <variant>
 #include <vector>
 
-#include <CGAL/Epick_d.h>
-#include <CGAL/Kd_tree.h>
-#include <CGAL/Search_traits_adapter.h>
-#include <CGAL/property_map.h>
 #include <Eigen/Geometry>
+#include <boost/geometry.hpp>
+#include <boost/geometry/geometries/box.hpp>
+#include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/index/rtree.hpp>
 #include <boost/heap/fibonacci_heap.hpp>
+#include <boost/iterator.hpp>
+#include <spdlog/spdlog.h>
 
 #include "meshing_cell.hpp"
 #include "stmesh/geometric_simplex.hpp"
@@ -33,13 +35,11 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
   Surface surface_;
   Random gen_;
 
-  using Kernel = CGAL::Epick_d<CGAL::Dimension_tag<4>>;
-  using Point = Kernel::Point_d;
-  using PointAndFullCell = std::tuple<Point, typename detail::Triangulation::FullCellHandle>;
-  using Traits =
-      CGAL::Search_traits_adapter<PointAndFullCell, CGAL::Nth_of_tuple_property_map<0, PointAndFullCell>, Kernel>;
-  using Tree = CGAL::Kd_tree<Traits>;
-  using FuzzySphere = CGAL::Fuzzy_sphere<Traits>;
+  using Point = detail::Triangulation::BGPoint;
+  using Box = detail::Triangulation::BGBox;
+  using Tree = bg::index::rtree<std::tuple<Box, typename detail::Triangulation::FullCellHandle, HyperSphere4>,
+                                // NOLINTNEXTLINE(*-magic-numbers)
+                                bg::index::rstar<16>>;
 
   Tree tree_removal_;
   Tree tree_insertion_;
@@ -103,37 +103,34 @@ public:
         static_cast<unsigned char>(static_cast<unsigned char>(1) << static_cast<unsigned>(neighbor_index));
   }
 
-  void addPointDependency(const Vector4F &point, const typename detail::Triangulation::FullCellHandle dependency,
+  void addPointDependency(const HyperSphere4 &sphere, const typename detail::Triangulation::FullCellHandle dependency,
                           bool on_insert = true) {
-    Point pt(point.begin(), point.end());
     if (on_insert)
-      tree_insertion_.insert({pt, dependency});
+      tree_insertion_.insert({detail::Triangulation::boxFromAABB(sphere.boundingBox()), dependency, sphere});
     else
-      tree_removal_.insert({pt, dependency});
+      tree_removal_.insert({detail::Triangulation::boxFromAABB(sphere.boundingBox()), dependency, sphere});
   }
 
-  void removePointDependency(const Vector4F &point, const typename detail::Triangulation::FullCellHandle dependency,
-                             bool on_insert = true) {
-    Point pt(point.begin(), point.end());
-    auto comparator = std::bind_front(std::equal_to<>(), std::make_tuple(pt, dependency));
+  void removePointDependency(const HyperSphere4 &sphere,
+                             const typename detail::Triangulation::FullCellHandle dependency, bool on_insert = true) {
     if (on_insert)
-      tree_insertion_.remove({pt, dependency}, comparator);
+      tree_insertion_.remove({detail::Triangulation::boxFromAABB(sphere.boundingBox()), dependency, sphere});
     else
-      tree_removal_.remove({pt, dependency}, comparator);
+      tree_removal_.remove({detail::Triangulation::boxFromAABB(sphere.boundingBox()), dependency, sphere});
   }
 
-  [[nodiscard]] std::vector<detail::Triangulation::FullCellHandle>
-  potentialsInRadius(const Vector4F &point, FLOAT_T radius, bool on_insert = true) const {
-    const Point p(point.begin(), point.end());
-    std::vector<PointAndFullCell> points_and_full_cells;
-    if (on_insert)
-      tree_insertion_.search(std::back_inserter(points_and_full_cells), FuzzySphere(p, radius));
-    else
-      tree_removal_.search(std::back_inserter(points_and_full_cells), FuzzySphere(p, radius));
+  [[nodiscard]] std::vector<detail::Triangulation::FullCellHandle> potentialsInRadius(const Vector4F &point,
+                                                                                      bool on_insert = true) const {
+    Point p = detail::Triangulation::pointFromVector(point);
+    auto query = bg::index::covers(p) &&
+                 bg::index::satisfies([&](const auto &value) { return std::get<2>(value).signedDistance(point) < 0; });
     std::vector<detail::Triangulation::FullCellHandle> full_cells;
-    full_cells.reserve(points_and_full_cells.size());
-    std::ranges::transform(points_and_full_cells, std::back_inserter(full_cells),
-                           [](const auto &point_and_full_cell) { return std::get<1>(point_and_full_cell); });
+    auto output_iterator =
+        boost::make_function_output_iterator([&](const auto &value) { full_cells.push_back(std::get<1>(value)); });
+    if (on_insert)
+      tree_insertion_.query(query, output_iterator);
+    else
+      tree_removal_.query(query, output_iterator);
     return full_cells;
   }
 
@@ -191,8 +188,9 @@ public:
   template <typename F = void (*)(void)> void triangulate(const F &callback = [] {}) {
     const detail::Rules *rule = nullptr;
     while (std::visit([](const auto &r) { return r.index; }, *(rule = &queue_.top().rule)) != detail::Complete::index) {
-      std::cout << "Applying rule " << std::visit([](const auto &r) { return r.index; }, *rule) + 1 << '\n';
+      spdlog::info("Applying rule {}", std::visit([](const auto &r) { return r.index; }, *rule) + 1);
       std::visit([&](auto &r) { r.apply(*this, queue_.top().full_cell); }, *rule);
+      spdlog::info("Number of vertices: {}", triangulation_.vertexCount());
       callback();
     }
   }
@@ -293,7 +291,7 @@ public:
   detail::Triangulation::VertexHandle insert(const Vector4F &point, detail::Triangulation::FullCellHandle hint = {},
                                              bool nonfree_vertex = false) noexcept {
     auto [removed, dependent_full_cells] =
-        processRemovedCells(triangulation_.conflictZone(point, hint), potentialsInRadius(point, deltaSurface(point)));
+        processRemovedCells(triangulation_.conflictZone(point, hint), potentialsInRadius(point));
     typename detail::Triangulation::VertexHandle vertex = triangulation_.insert(point, hint, nonfree_vertex);
     std::vector<typename detail::Triangulation::FullCellHandle> inserted = triangulation_.surroundingFullCells(vertex);
     updateHeap(inserted, removed, dependent_full_cells);
@@ -302,8 +300,8 @@ public:
 
   void remove(const detail::Triangulation::VertexHandle &vertex) {
     Vector4F point = triangulation_.pointToVec(vertex->point());
-    auto [removed, dependent_full_cells] = processRemovedCells(triangulation_.surroundingFullCells(vertex, false),
-                                                               potentialsInRadius(point, deltaSurface(point), false));
+    auto [removed, dependent_full_cells] =
+        processRemovedCells(triangulation_.surroundingFullCells(vertex, false), potentialsInRadius(point, false));
     typename detail::Triangulation::FullCellHandle center_full_cell = triangulation_.remove(vertex);
     std::vector<typename detail::Triangulation::FullCellHandle> inserted =
         triangulation_.commitUncommitted(center_full_cell);

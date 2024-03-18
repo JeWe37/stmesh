@@ -39,7 +39,6 @@ public:
 
   [[nodiscard]] FLOAT_T content() const noexcept;
 
-  // Coexter 1930, potentially switch to CGAL::Min_sphere_of_spheres_d
   [[nodiscard]] HyperSphere<D> circumsphere() const noexcept;
 
   [[nodiscard]] FLOAT_T radiusEdgeRatio() const noexcept;

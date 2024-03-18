@@ -8,7 +8,7 @@
 #include <vector>
 
 #include <CGAL/Dimension.h>
-#include <CGAL/Epeck_d.h>
+#include <CGAL/Epick_d.h>
 
 namespace stmesh {
 template <unsigned D, unsigned N>
@@ -59,9 +59,8 @@ template <unsigned D, unsigned N> [[nodiscard]] FLOAT_T GeometricSimplex<D, N>::
                    (std::pow(factorial(N - 1), FLOAT_T{2}) * std::pow(FLOAT_T{2}, FLOAT_T{N - 1})));
 }
 
-// Coexter 1930, potentially switch to CGAL::Min_sphere_of_spheres_d
 template <unsigned D, unsigned N> [[nodiscard]] HyperSphere<D> GeometricSimplex<D, N>::circumsphere() const noexcept {
-  using Kernel = CGAL::Epeck_d<CGAL::Dimension_tag<static_cast<int>(D)>>;
+  using Kernel = CGAL::Epick_d<CGAL::Dimension_tag<static_cast<int>(D)>>;
   using Point = Kernel::Point_d;
   std::vector<Point> points;
   points.reserve(N + 1);
@@ -69,9 +68,8 @@ template <unsigned D, unsigned N> [[nodiscard]] HyperSphere<D> GeometricSimplex<
                          // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
                          [](const auto &vertex) { return Point(vertex.data(), vertex.data() + D); });
   const Point point = Kernel().construct_circumcenter_d_object()(points.begin(), points.end());
-  auto exact_pt = CGAL::exact(point);
-  const Vector4F center = {CGAL::to_double(exact_pt[0]), CGAL::to_double(exact_pt[1]), CGAL::to_double(exact_pt[2]),
-                           CGAL::to_double(exact_pt[3])};
+  const Vector4F center = {CGAL::to_double(point[0]), CGAL::to_double(point[1]), CGAL::to_double(point[2]),
+                           CGAL::to_double(point[3])};
   const FLOAT_T radius = (center - vertices_.col(0)).norm();
   return {radius, center};
 }

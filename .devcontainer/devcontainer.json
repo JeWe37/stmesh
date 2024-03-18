@@ -21,6 +21,13 @@
 		"--ulimit",
 		"nofile=1024:4096"
 	],
+	"containerEnv": {
+		"DISPLAY": "${localEnv:DISPLAY}"
+	},
+	"initializeCommand": "xhost local:root",
+	"mounts": [
+		"source=/tmp/.X11-unix,target=/tmp/.X11-unix,type=bind,consistency=cached"
+	],
 	"customizations": {
 		"vscode": {
 			// Set *default* container specific settings.json values on container create.

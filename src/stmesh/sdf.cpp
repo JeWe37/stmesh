@@ -26,6 +26,10 @@ template <unsigned D>
   return {center_ - radius_ * VectorF<D>::Ones(), center_ + radius_ * VectorF<D>::Ones()};
 }
 
+template <unsigned D> bool HyperSphere<D>::operator==(const HyperSphere<D> &other) const noexcept {
+  return radius_ == other.radius_ && center_ == other.center_;
+}
+
 template class HyperSphere<3>;
 template class HyperSphere<4>;
 

@@ -2,6 +2,7 @@
 #define STMESH_MESHING_CELL_HPP
 #include <boost/heap/fibonacci_heap.hpp>
 #include <compare>
+#include <stmesh/sdf.hpp>
 
 #include "triangulation.hpp"
 
@@ -39,8 +40,10 @@ struct Rule {
     // if a cell that has passed rule 0 is removed, it must be complete
     // the question: what is z, need to persist that somehow
     // or just recompute it, but that's expensive(surface.closestPoint might be slow)
-    if (z0 != Vector4F::Constant(std::numeric_limits<FLOAT_T>::infinity()))
-      meshing_algorithm.removePointDependency(z0, full_cell, false);
+    if (z0 != Vector4F::Constant(std::numeric_limits<FLOAT_T>::infinity())) {
+      HyperSphere4 sphere{meshing_algorithm.deltaSurface(z0), z0};
+      meshing_algorithm.removePointDependency(sphere, full_cell, false);
+    }
   }
 };
 
@@ -69,15 +72,16 @@ struct Rule1 : Rule {
       //   if this condition is true, recheck if a vertex within deltaSurface(z) of z is added
 
       // since deltaSurface is constant, this test can just be done via a nearest neighbor search with appropriate bound
-      if (triangulation.verticesInRadius(z0, meshing_algorithm.deltaSurface(z0)).empty()) {
+      HyperSphere4 sphere{meshing_algorithm.deltaSurface(z0), z0};
+      if (triangulation.verticesInRadius(z0, sphere.radius()).empty()) {
         // if we insert a point, this might start failing, making the cell complete
         if (!dry_run)
-          meshing_algorithm.addPointDependency(z0, full_cell);
+          meshing_algorithm.addPointDependency(sphere, full_cell);
         return 1;
       } else {
         // if we remove a point, this might start passing, making the cell incomplete
         if (!dry_run)
-          meshing_algorithm.addPointDependency(z0, full_cell, false);
+          meshing_algorithm.addPointDependency(sphere, full_cell, false);
       }
     } else
       z0 = Vector4F::Constant(std::numeric_limits<FLOAT_T>::infinity());
@@ -93,7 +97,8 @@ struct Rule1 : Rule {
   template <typename MeshingAlgorithm>
   void remove(MeshingAlgorithm &meshing_algorithm, const Triangulation::FullCellHandle full_cell) const {
     // if a cell that is rule 0 is removed, it must be incomplete
-    meshing_algorithm.removePointDependency(z0, full_cell);
+    HyperSphere4 sphere{meshing_algorithm.deltaSurface(z0), z0};
+    meshing_algorithm.removePointDependency(sphere, full_cell);
   }
 
   // issue: what about the removal of a cell that is complete for rule0?

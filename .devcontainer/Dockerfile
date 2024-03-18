@@ -78,7 +78,7 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
 # Install optional dependecies
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
-        doxygen graphviz ccache cppcheck python-is-python3 rr
+        doxygen graphviz ccache cppcheck python-is-python3 rr valgrind kcachegrind
 
 # Install include-what-you-use
 ENV IWYU /home/iwyu
@@ -126,6 +126,11 @@ RUN git clone --depth 1 --branch v5.2.1 https://github.com/InsightSoftwareConsor
     cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON /opt/itk-src && \
     cmake --build . -j $(nproc) && \
     rm /opt/itk.patch
+
+# X11 support
+RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y --no-install-recommends \
+        dbus-x11
 
 # Per https://github.com/include-what-you-use/include-what-you-use#how-to-install:
 # `You need to copy the Clang include directory to the expected location before

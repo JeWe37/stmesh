@@ -32,7 +32,7 @@ int main(int argc, const char **argv) {
     }
 
     const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
-        stmesh::FLOAT_T(100.0),
+        stmesh::FLOAT_T(30.0),
         stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
     // NOLINTBEGIN(*-magic-numbers,misc-const-correctness)
     stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(1e-2),
