@@ -1,17 +1,26 @@
 #ifndef STMESH_TRIANGULATION_HPP
 #define STMESH_TRIANGULATION_HPP
 
+#include <cstddef>
+#include <optional>
+#include <tuple>
 #include <unordered_map>
 #include <variant>
 #include <vector>
 
 #include <CGAL/Delaunay_triangulation.h>
+#include <CGAL/Dimension.h>
 #include <CGAL/Epick_d.h>
+#include <CGAL/Triangulation_data_structure.h>
+#include <CGAL/Triangulation_full_cell.h>
+#include <CGAL/Triangulation_vertex.h>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <boost/geometry.hpp>
+#include <boost/geometry/core/cs.hpp>
 #include <boost/geometry/geometries/box.hpp>
 #include <boost/geometry/geometries/point.hpp>
+#include <boost/geometry/index/parameters.hpp>
 #include <boost/geometry/index/rtree.hpp>
 
 #include "geometric_simplex.hpp"

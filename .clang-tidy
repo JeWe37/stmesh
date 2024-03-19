@@ -18,7 +18,8 @@ Checks: "*,
         -cppcoreguidelines-avoid-do-while,
         -misc-non-private-member-variables-in-classes,
         -misc-no-recursion,
-        -bugprone-easily-swappable-parameters
+        -bugprone-easily-swappable-parameters,
+        -bugprone-assignment-in-if-condition
 "
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
@@ -48,3 +49,8 @@ CheckOptions:
   - { key: readability-implicit-bool-conversion.AllowIntegerConditions,  value: 1   }
   - { key: readability-implicit-bool-conversion.AllowPointerConditions,  value: 1   }
   - { key: readability-function-cognitive-complexity.IgnoreMacros,  value: 1   }
+  - { key: readability-magic-numbers.IgnoredIntegerValues, value: "1;2;3;4;5"}
+  - { key: cppcoreguidelines-avoid-magic-numbers.IgnoredIntegerValues, value: "1;2;3;4;5" }
+  - { key: readability-magic-numbers.IgnoredFloatingPointValues, value: "0.5;1.0;2.0" }
+  - { key: cppcoreguidelines-avoid-magic-numbers.IgnoredFloatingPointValues, value: "0.5;1.0;2.0" }
+  - { key: misc-include-cleaner.IgnoreHeaders, value: "Eigen/src/(Core|Geometry|SVD)/.*;Eigen/(Geometry|Core)" }

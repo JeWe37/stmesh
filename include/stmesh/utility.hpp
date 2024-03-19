@@ -3,10 +3,13 @@
 
 #include <array>
 #include <concepts> // IWYU pragma: keep
+#include <cstddef>
 #include <limits>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <fmt/core.h>
+#include <fmt/ostream.h>
 
 #include <internal_use_only/config.hpp>
 
@@ -69,4 +72,8 @@ allCorners(const Eigen::AlignedBox<FLOAT_T, D> &box);
 template <int D, int N>
 [[nodiscard]] Eigen::Matrix<FLOAT_T, D, D - N> kernel(const Eigen::Matrix<FLOAT_T, D, N> &matrix) noexcept;
 } // namespace stmesh
+
+template <typename T>
+requires std::is_base_of_v<Eigen::DenseBase<T>, T>
+struct fmt::formatter<T> : ostream_formatter {};
 #endif

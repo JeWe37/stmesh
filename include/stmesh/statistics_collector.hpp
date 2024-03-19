@@ -1,6 +1,7 @@
 #ifndef STMESH_STATISTICS_COLLECTOR_HPP
 #define STMESH_STATISTICS_COLLECTOR_HPP
 
+#include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -10,6 +11,7 @@
 #include <fmt/ostream.h>
 
 #include "geometric_simplex.hpp"
+#include "sdf.hpp"
 #include "surface_adapters.hpp" // IWYU pragma: keep
 #include "triangulation.hpp"
 

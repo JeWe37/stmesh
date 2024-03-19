@@ -4,6 +4,7 @@
 #include <concepts> // IWYU pragma: keep
 
 #include <Eigen/Geometry>
+#include <fmt/core.h>
 
 #include "sdf_mixins.hpp"
 #include "utility.hpp"
@@ -72,6 +73,8 @@ public:
   [[nodiscard]] FLOAT_T signedDistance(VectorF<D> point) const noexcept;
 
   [[nodiscard]] Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> boundingBox() const noexcept;
+
+  friend class ::fmt::formatter<HyperCube<D>>;
 };
 
 template <unsigned D> struct ExactSDFTag<HyperCube<D>> {
@@ -80,4 +83,13 @@ template <unsigned D> struct ExactSDFTag<HyperCube<D>> {
 
 using HyperCube4 = HyperCube<4>;
 } // namespace stmesh
+
+template <unsigned D> class fmt::formatter<stmesh::HyperCube<D>> {
+public:
+  constexpr static auto parse(format_parse_context &ctx) { return ctx.begin(); }
+  template <typename Context> static constexpr auto format(const stmesh::HyperCube<D> &hypercube, Context &ctx) {
+    return fmt::format_to(ctx.out(), "(({}),({}))", hypercube.min_.transpose(), hypercube.max_.transpose());
+  }
+};
+
 #endif

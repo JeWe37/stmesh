@@ -1,10 +1,18 @@
 #ifndef STMESH_MESHING_CELL_HPP
 #define STMESH_MESHING_CELL_HPP
+#include <algorithm>
 #include <boost/heap/fibonacci_heap.hpp>
 #include <compare>
-#include <stmesh/sdf.hpp>
+#include <limits>
+#include <stdexcept>
+#include <utility>
+#include <variant>
+#include <vector>
 
+#include "geometric_simplex.hpp"
+#include "sdf.hpp"
 #include "triangulation.hpp"
+#include "utility.hpp"
 
 namespace stmesh::detail {
 // ordering for max-heap
@@ -12,10 +20,9 @@ struct Cell;
 
 using CellHandle = typename boost::heap::fibonacci_heap<Cell>::handle_type;
 
-// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 struct ExtraData {
-  CellHandle cell_handle;
-  unsigned char dependents;
+  CellHandle cell_handle{};
+  unsigned char dependents{};
 };
 
 using Triangulation = Triangulation<ExtraData>;
@@ -120,7 +127,6 @@ struct Rule2 : Rule {
     if (surface.intersectedBySphere(circumsphere)) {
       z = circumsphere.center();
       if (circumsphere.radius() >= 2 * meshing_algorithm.deltaSurface(surface.closestPoint(z))) {
-        // NOLINTNEXTLINE(bugprone-assignment-in-if-condition)
         if ((z_outside = !triangulation.boundingBox().contains(z)))
           z = z.cwiseMax(triangulation.boundingBox().min()).cwiseMin(triangulation.boundingBox().max());
         return 1;
@@ -157,7 +163,6 @@ struct Rule3 : Rule {
 
 struct Rule4 : Rule {
   static constexpr inline int kIndex = 3;
-  // NOLINTNEXTLINE(*-magic-numbers)
   Eigen::Matrix<FLOAT_T, 4, 5> vertices;
   unsigned prio;
 
@@ -219,7 +224,6 @@ struct Rule5 : Rule {
     }
     case 1: {
       Eigen::Index j = 0;
-      // NOLINTNEXTLINE(*-magic-numbers)
       for (Eigen::Index i = 0; i < 5; ++i) {
         if (i != idx)
           vertices.col(j++) = full_cell_simplex.vertices().col(i);
@@ -260,7 +264,6 @@ struct Complete : Rule {
                         bool dry_run = false) {
     // TODO: optimally these rechecks only need to recheck rule5 i think
     if (!dry_run) {
-      // NOLINTNEXTLINE(*-magic-numbers)
       for (int i = 0; i < 5; ++i)
         meshing_algorithm.addDependency(full_cell->neighbor(i),
                                         meshing_algorithm.triangulation().mirrorIndex(full_cell, i));
@@ -271,11 +274,10 @@ struct Complete : Rule {
 
 using Rules = std::variant<Rule1, Rule2, Rule3, Rule4, Rule5, Complete>;
 
-// NOLINTNEXTLINE(cppcoreguidelines-pro-type-member-init,hicpp-member-init)
 struct Cell {
-  Rules rule;
-  int random;
-  Triangulation::FullCellHandle full_cell;
+  Rules rule{};
+  int random{};
+  Triangulation::FullCellHandle full_cell{};
 
   friend auto operator<=>(const Cell &lhs, const Cell &rhs) noexcept {
     int lhsindex = std::visit([](const auto &r) { return r.kIndex; }, lhs.rule);

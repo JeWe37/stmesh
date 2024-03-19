@@ -1,10 +1,9 @@
-// NOLINTBEGIN(*-magic-numbers,misc-include-cleaner)
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>
 #include <limits>
 
-#include <stmesh/stmesh.hpp>
+#include <stmesh/utility.hpp>
 
 TEST_CASE("Factorial is computed with constexpr", "[factorial][utility]") {
   STATIC_REQUIRE(stmesh::factorial(0U) == 1U);
@@ -57,4 +56,3 @@ TEST_CASE("nChoosek is computed with constexpr", "[nChoosek][utility]") {
   STATIC_REQUIRE(stmesh::nChoosek(10U, 9U) == 10U);
   STATIC_REQUIRE(stmesh::nChoosek(10U, 10U) == 1U);
 }
-// NOLINTEND(*-magic-numbers,misc-include-cleaner)

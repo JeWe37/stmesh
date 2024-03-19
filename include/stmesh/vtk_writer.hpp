@@ -1,7 +1,9 @@
 #ifndef STMESH_VTK_WRITER_HPP
 #define STMESH_VTK_WRITER_HPP
 
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <filesystem>
 #include <iterator>
 #include <random>
@@ -14,8 +16,11 @@
 #include <Eigen/Geometry>
 #include <fmt/core.h>
 #include <vtkCellData.h>
+#include <vtkCellType.h>
 #include <vtkIntArray.h>
 #include <vtkNew.h>
+#include <vtkPoints.h>
+#include <vtkType.h>
 #include <vtkUnstructuredGrid.h>
 #include <vtkXMLUnstructuredGridWriter.h>
 

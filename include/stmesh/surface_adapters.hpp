@@ -1,12 +1,14 @@
 #ifndef STMESH_SURFACE_ADAPTERS_HPP
 #define STMESH_SURFACE_ADAPTERS_HPP
 
-#include <boost/math/tools/toms748_solve.hpp>
+#include <array>
 #include <concepts> // IWYU pragma: keep
 #include <cstddef>
 #include <memory>
 #include <optional>
+#include <stdexcept>
 #include <utility>
+#include <vector>
 
 #include <Eigen/Geometry>
 
