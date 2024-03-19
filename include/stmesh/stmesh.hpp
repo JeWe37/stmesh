@@ -2,6 +2,7 @@
 #define STMESH_STMESH_HPP
 
 // IWYU pragma: begin_exports
+#include "boundary_region_manager.hpp"
 #include "edt.hpp"
 #include "geometric_simplex.hpp"
 #include "meshing_algorithm.hpp"

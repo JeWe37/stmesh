@@ -7,7 +7,7 @@
 
 #include <itkAddImageFilter.h>
 #include <itkBinaryImageToLabelMapFilter.h>
-#include <itkBinaryNotImageFilter.h>
+#include <itkBinaryThresholdImageFilter.h>
 #include <itkDanielssonDistanceMapImageFilter.h>
 #include <itkImage.h>
 #include <itkImageFileReader.h>
@@ -21,9 +21,9 @@
 namespace stmesh {
 
 namespace {
-template <typename TImage, typename F>
+template <typename TImage, typename F = decltype(std::identity())>
 std::vector<std::remove_cvref_t<std::invoke_result_t<F, typename TImage::PixelType>>>
-deepCopy(TImage *input, const F &conversion) noexcept {
+deepCopy(TImage *input, const F &conversion = std::identity()) noexcept {
   std::vector<std::remove_cvref_t<std::invoke_result_t<F, typename TImage::PixelType>>> output;
 
 #ifndef __clang_analyzer__
@@ -44,7 +44,7 @@ Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> boundingBoxFromImage(const itk::
   using BinaryImageToLabelMapFilter = itk::BinaryImageToLabelMapFilter<Image>;
   const typename BinaryImageToLabelMapFilter::Pointer binary_image_to_label_map_filter =
       BinaryImageToLabelMapFilter::New();
-  binary_image_to_label_map_filter->SetInputForegroundValue(1);
+  binary_image_to_label_map_filter->SetInputForegroundValue(0);
   binary_image_to_label_map_filter->SetInput(image);
   binary_image_to_label_map_filter->Update();
 
@@ -92,22 +92,23 @@ template <unsigned D> EDTReader<D>::EDTReader(const std::string &filename) {
 
   auto read = itk::ReadImage<Image>(filename);
   std::ranges::copy(read->GetLargestPossibleRegion().GetSize(), sizes_.begin());
-  bounding_box_ = boundingBoxFromImage(read.GetPointer());
+  using BinaryThresholdImageFilter = itk::BinaryThresholdImageFilter<Image, Image>;
+  const typename BinaryThresholdImageFilter::Pointer threshold_image_filter = BinaryThresholdImageFilter::New();
+  threshold_image_filter->SetLowerThreshold(1);
+  threshold_image_filter->SetInsideValue(0);
+  threshold_image_filter->SetOutsideValue(1);
+  threshold_image_filter->SetInput(read);
+
+  bounding_box_ = boundingBoxFromImage(threshold_image_filter->GetOutput());
 
   using DanielssonDistanceMapImageFilter = itk::DanielssonDistanceMapImageFilter<Image, FloatImage>;
   const typename DanielssonDistanceMapImageFilter::Pointer distance_map_image_filter =
       DanielssonDistanceMapImageFilter::New();
   distance_map_image_filter->SetInput(read);
 
-  using BinaryNotImageFilter = itk::BinaryNotImageFilter<Image>;
-  const typename BinaryNotImageFilter::Pointer not_image_filter = BinaryNotImageFilter::New();
-  not_image_filter->SetBackgroundValue(0);
-  not_image_filter->SetForegroundValue(1);
-  not_image_filter->SetInput(read);
-
   const typename DanielssonDistanceMapImageFilter::Pointer not_distance_map_image_filter =
       DanielssonDistanceMapImageFilter::New();
-  not_distance_map_image_filter->SetInput(not_image_filter->GetOutput());
+  not_distance_map_image_filter->SetInput(threshold_image_filter->GetOutput());
 
   using AddImageFilter = itk::AddImageFilter<OffsetImage>;
   const typename AddImageFilter::Pointer add_image_filter = AddImageFilter::New();
@@ -121,7 +122,8 @@ template <unsigned D> EDTReader<D>::EDTReader(const std::string &filename) {
   subtract_image_filter->SetInput2(distance_map_image_filter->GetDistanceMap());
   subtract_image_filter->Update();
 
-  distance_map_ = deepCopy(subtract_image_filter->GetOutput(), std::identity());
+  voxel_type_ = deepCopy(read.GetPointer());
+  distance_map_ = deepCopy(subtract_image_filter->GetOutput());
   vector_map_ = deepCopy(add_image_filter->GetOutput(), [](const itk::Offset<D> &offset) {
     VectorF<D> result;
     for (unsigned i = 0; i < D; ++i)
@@ -132,6 +134,10 @@ template <unsigned D> EDTReader<D>::EDTReader(const std::string &filename) {
 
 template <unsigned D> FLOAT_T EDTReader<D>::signedDistanceAt(const VectorF<D> &point) const noexcept {
   return distance_map_[projection(point)];
+}
+
+template <unsigned D> size_t EDTReader<D>::findBoundaryRegion(const Vector4F &point) const noexcept {
+  return voxel_type_[projection(point)];
 }
 
 template <unsigned D> VectorF<D> EDTReader<D>::closestAt(const VectorF<D> &point) const noexcept {

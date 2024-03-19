@@ -1,7 +1,9 @@
 #ifndef STMESH_EDT_READER_HPP
 #define STMESH_EDT_READER_HPP
 
+#include <array>
 #include <concepts> // IWYU pragma: keep
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -20,6 +22,7 @@ concept EuclideanDistanceTransform = requires(const T t, VectorF<D> vec) {
 template <unsigned D> class EDTReader {
   std::vector<FLOAT_T> distance_map_;
   std::vector<Vector4F> vector_map_;
+  std::vector<unsigned char> voxel_type_;
   std::array<size_t, D> sizes_;
   Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> bounding_box_;
 
@@ -31,6 +34,8 @@ public:
   explicit EDTReader(const std::string &filename);
 
   [[nodiscard]] FLOAT_T signedDistanceAt(const VectorF<D> &point) const noexcept;
+
+  [[nodiscard]] size_t findBoundaryRegion(const Vector4F &point) const noexcept;
 
   [[nodiscard]] VectorF<D> closestAt(const VectorF<D> &point) const noexcept;
 
