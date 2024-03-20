@@ -29,6 +29,24 @@ std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view 
                                    const std::vector<std::array<size_t, 5>> &full_cell_vertex_ids);
 } // namespace detail
 
+/// Write a MIXD file from a triangulation
+/**
+ * Writes a MIXD file from a triangulation. The MIXD file format is a file format used by XNS to represent a mesh.
+ * The format consists of:
+ * - A .mxyz file containing the coordinates of the vertices of the mesh.
+ * - A .mien file containing the vertex indices of the full cells of the mesh.
+ * - A .mrng file containing the boundary region indices of the faces of the mesh.
+ * - A .minf file containing metadata about the mesh.
+ * Only full cells whose circumsphere is inside the surface are written to the MIXD file.
+ * Boundary regions are determined by the boundary_region_manager.
+ *
+ * @param file The path to the .minf file to write. The other MIXD files will be placed alongside it.
+ * @param surface The surface adapter to use to determine which full cells to write to the MIXD file.
+ * @param triangulation The triangulation to write to the MIXD file.
+ * @param boundary_region_manager The boundary region manager to use to determine the boundary regions of the faces of
+ * the mesh.
+ * @tparam ExtraData The type of extra data stored in the triangulation.
+ */
 template <typename ExtraData>
 void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unused]] const SurfaceAdapter4 auto &surface,
                const Triangulation<ExtraData> &triangulation,

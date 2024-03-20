@@ -50,6 +50,23 @@ public:
 };
 } // namespace detail
 
+/// Write a VTK file from a triangulation
+/**
+ * Writes a VTK file from a triangulation. The VTK file format is a file format used by ParaView and other visualization
+ * software. In this case, the VTK file format is used to represent a mesh, or unstructured grid in VTK terms, thus with
+ * a .vtu file extension.
+ * As we are dealing with a time-dependent mesh, we write a series of VTK files, one for each time step. The time step
+ * is determined by the dt parameter.
+ * Only full cells whose circumsphere is inside the surface are written to the VTK file.
+ *
+ * @param directory The directory to write the VTK files to.
+ * @param name_format The format string for the VTK file names. This format string should contain a single {} which will
+ * be replaced with the time step number.
+ * @param dt The time step for the VTK output.
+ * @param surface The surface adapter to use to determine which full cells to write to the VTK file.
+ * @param triangulation The triangulation to write to the VTK file.
+ * @tparam ExtraData The type of extra data stored in the triangulation.
+ */
 template <typename ExtraData>
 void writeVTU([[maybe_unused]] const std::filesystem::path &directory, [[maybe_unused]] std::string_view name_format,
               FLOAT_T dt, [[maybe_unused]] const SurfaceAdapter4 auto &surface,

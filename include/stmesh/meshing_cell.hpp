@@ -65,7 +65,6 @@ struct Rule1 : Rule {
     HyperSphere<4> circumsphere = simplex.circumsphere();
     if (surface.intersectedBySphere(circumsphere)) {
       z0 = surface.closestPoint(circumsphere.center());
-      // TODO: track potential points in kd tree
       // if potential point is within radius, make it a dependency and vice-versa
       // that assumes constant deltaSurface...
       // need dependency system that supports this...

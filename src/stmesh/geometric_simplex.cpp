@@ -162,7 +162,6 @@ template <unsigned D, unsigned N>
   }
 }
 
-// TODO: verify in depth...
 // already clear: edges/vertices are never bad, always good
 // faces, facets and cells might be tho
 // faces also always good for reasons explained in XY Li paper
