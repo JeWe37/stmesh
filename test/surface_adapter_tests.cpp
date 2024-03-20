@@ -72,10 +72,8 @@ TEST_CASE("Test edt adapter with sphere edt", "[edt_adapter][surface_adapter]") 
   const stmesh::EDTSurfaceAdapter adapter(edt_reader);
   {
     INFO("Correctly constructed");
-    REQUIRE(adapter.boundingBox().min() ==
-            stmesh::Vector4F{stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0), stmesh::FLOAT_T(2.0)});
-    REQUIRE(adapter.boundingBox().max() == stmesh::Vector4F{stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(42.0),
-                                                            stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(42.0)});
+    REQUIRE(adapter.boundingBox().min() == stmesh::Vector4F::Constant(stmesh::FLOAT_T(2.5)));
+    REQUIRE(adapter.boundingBox().max() == stmesh::Vector4F::Constant(stmesh::FLOAT_T(42.5)));
   }
   {
     INFO("Correctly computes closest point");
@@ -95,6 +93,43 @@ TEST_CASE("Test edt adapter with sphere edt", "[edt_adapter][surface_adapter]") 
         (adapter.closestPoint(stmesh::Vector4F::Constant(18.0)) - stmesh::Vector4F::Constant(stmesh::FLOAT_T(12.625)))
             .cwiseAbs()
             .maxCoeff() < std::sqrt(kEps));
+    REQUIRE((adapter.closestPoint(stmesh::Vector4F{stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(42.0),
+                                                   stmesh::FLOAT_T(42.0)}) -
+             stmesh::Vector4F{stmesh::FLOAT_T(31.6346), stmesh::FLOAT_T(32.6218), stmesh::FLOAT_T(32.6218),
+                              stmesh::FLOAT_T(32.6218)})
+                .cwiseAbs()
+                .maxCoeff() < stmesh::FLOAT_T(0.0001));
+    REQUIRE((adapter.closestPoint(stmesh::Vector4F{stmesh::FLOAT_T(12.75), stmesh::FLOAT_T(12.75),
+                                                   stmesh::FLOAT_T(12.75), stmesh::FLOAT_T(12.75)}) -
+             stmesh::Vector4F{stmesh::FLOAT_T(12.625), stmesh::FLOAT_T(12.625), stmesh::FLOAT_T(12.625),
+                              stmesh::FLOAT_T(12.625)})
+                .cwiseAbs()
+                .maxCoeff() < stmesh::FLOAT_T(0.0001));
+    REQUIRE(
+        (adapter.closestPoint(stmesh::Vector4F{stmesh::FLOAT_T(30.410721265491009), stmesh::FLOAT_T(43.839278734508994),
+                                               stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(1.1607212654910053)}) -
+         stmesh::Vector4F{stmesh::FLOAT_T(27.5783), stmesh::FLOAT_T(35.7243), stmesh::FLOAT_T(22.5),
+                          stmesh::FLOAT_T(8.30259)})
+            .cwiseAbs()
+            .maxCoeff() < stmesh::FLOAT_T(0.0001));
+    REQUIRE((adapter.closestPoint({stmesh::FLOAT_T(24.044997984412813), stmesh::FLOAT_T(20.955002015587191),
+                                   stmesh::FLOAT_T(20.955002015587191), stmesh::FLOAT_T(20.955002015587191)}) -
+             stmesh::Vector4F{stmesh::FLOAT_T(32.3712), stmesh::FLOAT_T(10.6593), stmesh::FLOAT_T(11.644),
+                              stmesh::FLOAT_T(16.5679)})
+                .cwiseAbs()
+                .maxCoeff() < stmesh::FLOAT_T(0.0001));
+    REQUIRE((adapter.closestPoint(
+                 {stmesh::FLOAT_T(12.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0)}) -
+             stmesh::Vector4F{stmesh::FLOAT_T(3.0), stmesh::FLOAT_T(22.4737), stmesh::FLOAT_T(22.4737),
+                              stmesh::FLOAT_T(22.4737)})
+                .cwiseAbs()
+                .maxCoeff() < stmesh::FLOAT_T(0.0001));
+    REQUIRE((adapter.closestPoint({stmesh::FLOAT_T(25.6665), stmesh::FLOAT_T(1.83938), stmesh::FLOAT_T(11.3984),
+                                   stmesh::FLOAT_T(37.9663)}) -
+             stmesh::Vector4F{stmesh::FLOAT_T(24.5378), stmesh::FLOAT_T(7.3161), stmesh::FLOAT_T(15.3667),
+                              stmesh::FLOAT_T(33.645)})
+                .cwiseAbs()
+                .maxCoeff() < stmesh::FLOAT_T(0.0001));
   }
   {
     INFO("Correctly determines if inside");
@@ -146,5 +181,34 @@ TEST_CASE("Test edt adapter with sphere edt", "[edt_adapter][surface_adapter]") 
     REQUIRE(
         *adapter.raycast(point3, direction3, max_distance) ==
         stmesh::Vector4F{stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(42.0), stmesh::FLOAT_T(22.5)});
+  }
+}
+
+TEST_CASE("Test edt adapter with ellipse edt", "[spacing_edt_adapter][surface_adapter]") {
+  const auto edt_reader = std::make_shared<stmesh::EDTReader<4>>("data/ellipse.mha");
+  const stmesh::EDTSurfaceAdapter adapter(edt_reader);
+  {
+    INFO("Correctly constructed");
+    REQUIRE(adapter.boundingBox().min() == stmesh::Vector4F{2.5, 2.5, 5.0, 2.5});
+    REQUIRE(adapter.boundingBox().max() == stmesh::Vector4F{42.5, 42.5, 85.0, 42.5});
+  }
+  {
+    INFO("Correctly computes closest point");
+    REQUIRE(
+        adapter.closestPoint(
+            {stmesh::FLOAT_T(12.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(45.0), stmesh::FLOAT_T(22.5)}) ==
+        stmesh::Vector4F{stmesh::FLOAT_T(3.0), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(45.0), stmesh::FLOAT_T(22.5)});
+    REQUIRE((adapter.closestPoint(stmesh::Vector4F{stmesh::FLOAT_T(12.75), stmesh::FLOAT_T(12.75),
+                                                   stmesh::FLOAT_T(25.5), stmesh::FLOAT_T(12.75)}) -
+             stmesh::Vector4F{stmesh::FLOAT_T(12.625), stmesh::FLOAT_T(12.625), stmesh::FLOAT_T(25.25),
+                              stmesh::FLOAT_T(12.625)})
+                .cwiseAbs()
+                .maxCoeff() < stmesh::FLOAT_T(0.0001));
+    REQUIRE((adapter.closestPoint(stmesh::Vector4F{stmesh::FLOAT_T(27.2448), stmesh::FLOAT_T(27.2448),
+                                                   stmesh::FLOAT_T(61.7149), stmesh::FLOAT_T(2.17468)}) -
+             stmesh::Vector4F{stmesh::FLOAT_T(26.5892), stmesh::FLOAT_T(27.4694), stmesh::FLOAT_T(61.0428),
+                              stmesh::FLOAT_T(5.1015)})
+                .cwiseAbs()
+                .maxCoeff() < stmesh::FLOAT_T(0.0001));
   }
 }

@@ -1,0 +1,7 @@
+ObjectType = Image
+NDims = 4
+DimSize = 100 100 29 15
+ElementType = MET_UCHAR
+HeaderSize = -1
+ElementSpacing = 1.77 1.77 6 1
+ElementDataFile = /workspaces/stmesh/tools/data/HeartDatabase/Pat05/mse4d/lvcm/seg4db_epilisse%04d.pgm 1 15 1

@@ -22,6 +22,11 @@ using VectorF = Eigen::Vector<FLOAT_T, static_cast<int>(D)>; ///< A vector of di
 using Vector4F = VectorF<static_cast<unsigned>(4)>;          ///< A vector of dimension 4 of FLOAT_T
 using Vector3F = VectorF<static_cast<unsigned>(3)>;          ///< A vector of dimension 3 of FLOAT_T
 
+template <unsigned D>
+using ArrayF = Eigen::Array<FLOAT_T, static_cast<int>(D), 1>; ///< An array of dimension D of FLOAT_T
+using Array4F = ArrayF<static_cast<unsigned>(4)>;             ///< An array of dimension 4 of FLOAT_T
+using Array3F = ArrayF<static_cast<unsigned>(3)>;             ///< An array of dimension 3 of FLOAT_T
+
 // NOLINTNEXTLINE(misc-unused-alias-decls)
 namespace bg = boost::geometry; ///< Alias for boost::geometry
 
@@ -52,6 +57,16 @@ template <std::floating_point T> T consteval sqrtNewtonRaphson(T x, T curr, T pr
   return curr == prev ? curr : sqrtNewtonRaphson(x, (curr + x / curr) / 2, curr);
 }
 } // namespace detail
+
+/// A sign function
+/**
+ * A sign function. This function returns the sign of a number.
+ *
+ * @tparam T The type of the number
+ * @param val The number to get the sign of
+ * @return The sign of val
+ */
+template <typename T> int sgn(T val) { return (T(0) < val) - (val < T(0)); }
 
 /// A consteval square root function
 /**
