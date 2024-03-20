@@ -1,13 +1,16 @@
+#include <array>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <string>
 
 #include <CLI/App.hpp>
 // NOLINTNEXTLINE(misc-include-cleaner)
 #include <CLI/CLI.hpp>
+#include <CLI/Option.hpp>
 #include <fmt/core.h>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
@@ -30,37 +33,71 @@ int main(int argc, const char **argv) {
     app.add_flag("--version", show_version, "Show version information");
 
     std::optional<std::filesystem::path> stats_output_file;
-    app.add_flag("--statistics-output", stats_output_file, "Write statistics to a file");
+    app.add_option("--statistics-output", stats_output_file, "Write statistics to a file");
 
     std::optional<std::filesystem::path> vtk_output_dir;
-    app.add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to");
+    CLI::Option *vtk_output_dir_option =
+        app.add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to");
 
-    std::string vtk_output_name_format = "mesh_{}.vtu";
-    app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk output files");
+    std::string vtk_output_name_format;
+    app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk output files")
+        ->default_val("mesh_{}.vtu")
+        ->needs(vtk_output_dir_option);
 
-    // NOLINTBEGIN(*-magic-numbers)
-    auto vtk_output_dt = stmesh::FLOAT_T(0.5);
-    app.add_option("--vtk-output-dt", vtk_output_dt, "Time step for vtk output");
+    // NOLINTBEGIN(*-magic-numbers,cppcoreguidelines-init-variables)
+    stmesh::FLOAT_T vtk_output_dt;
+    app.add_option("--vtk-output-dt", vtk_output_dt, "Time step for vtk output")
+        ->default_val(stmesh::FLOAT_T(0.5))
+        ->needs(vtk_output_dir_option);
 
-    auto rho_bar = stmesh::FLOAT_T(20.0);
-    app.add_option("--rho-bar", rho_bar, "Rho bar for meshing algorithm");
+    stmesh::FLOAT_T rho_bar;
+    app.add_option("--rho-bar", rho_bar, "Rho bar for meshing algorithm")->default_val(stmesh::FLOAT_T(20.0));
 
-    auto tau_bar = stmesh::FLOAT_T(0.0013);
-    app.add_option("--tau-bar", tau_bar, "Tau bar for meshing algorithm");
+    stmesh::FLOAT_T tau_bar;
+    app.add_option("--tau-bar", tau_bar, "Tau bar for meshing algorithm")->default_val(stmesh::FLOAT_T(0.0013));
 
-    auto zeta = stmesh::FLOAT_T(0.5);
-    app.add_option("--zeta", zeta, "Zeta for meshing algorithm");
+    stmesh::FLOAT_T zeta;
+    app.add_option("--zeta", zeta, "Zeta for meshing algorithm")->default_val(stmesh::FLOAT_T(0.5));
 
-    auto b = stmesh::FLOAT_T(5.0);
-    app.add_option("--b", b, "b for meshing algorithm");
+    stmesh::FLOAT_T b;
+    app.add_option("--b", b, "b for meshing algorithm")->default_val(stmesh::FLOAT_T(5.0));
 
-    auto delta = stmesh::FLOAT_T(5.0);
-    app.add_option("--delta", delta, "delta for meshing algorithm");
-    // NOLINTEND(*-magic-numbers)
+    stmesh::FLOAT_T delta;
+    app.add_option("--delta", delta, "delta for meshing algorithm")->default_val(stmesh::FLOAT_T(5.0));
 
-    // NOLINTNEXTLINE(cppcoreguidelines-init-variables)
     std::optional<unsigned> seed;
     app.add_option("--seed", seed, "Seed for random number generation");
+    // NOLINTEND(*-magic-numbers,cppcoreguidelines-init-variables)
+
+    std::optional<std::string> edt_file;
+    CLI::Option *edt_file_option = app.add_option("--edt-file", edt_file, "Read an EDT file");
+
+    stmesh::HypercubeBoundaryManager hypercube_boundary_manager;
+    // NOLINTNEXTLINE(*-magic-numbers)
+    CLI::Option *hypercube_option = app.add_option_function<std::array<stmesh::FLOAT_T, 8>>(
+        "--hypercube",
+        [&hypercube_boundary_manager](const auto &arr) {
+          stmesh::Vector4F min;
+          std::copy_n(arr.begin(), 4, min.data());
+          stmesh::Vector4F max;
+          std::copy_n(arr.begin() + 4, 4, max.data());
+
+          stmesh::HyperCube4 hypercube(min, max);
+          fmt::print("Added hypercube {} with id {}\n", hypercube,
+                     static_cast<int>(hypercube_boundary_manager.addBoundaryRegion(hypercube)));
+          ;
+        },
+        "Add a hypercube to the meshing algorithm");
+
+    bool use_edt_file_boundary_regions = false;
+    app.add_flag("--use-edt-file-boundary-regions", use_edt_file_boundary_regions,
+                 "Use boundary regions from the EDT file")
+        ->needs(edt_file_option)
+        ->excludes(hypercube_option);
+
+    std::optional<std::filesystem::path> mixd_output_file;
+    app.add_option("--mixd-output", mixd_output_file,
+                   "Specify the .minf file to write, other MIXD files will be placed alongside it.");
 
     // NOLINTEND(misc-const-correctness)
     CLI11_PARSE(app, argc, argv);
@@ -70,25 +107,50 @@ int main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
 
-    const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
-        stmesh::FLOAT_T(30.0),
-        stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(30.0)});
+    const auto mesh = [&](const auto &surface_adapter,
+                          const std::shared_ptr<stmesh::EDTReader<4>> &edt_reader = nullptr) {
+      // NOLINTNEXTLINE(misc-const-correctness)
+      stmesh::MeshingAlgorithm meshing_algorithm(surface_adapter, rho_bar, tau_bar, zeta, b, delta, seed);
 
-    // NOLINTNEXTLINE(misc-const-correctness)
-    stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, rho_bar, tau_bar, zeta, b, delta, seed);
-    meshing_algorithm.triangulate();
+      spdlog::info("Setup complete. Starting meshing...");
 
-    spdlog::info("Meshing complete! Number of elements: {}",
-                 std::distance(meshing_algorithm.triangulation().begin(), meshing_algorithm.triangulation().end()));
+      meshing_algorithm.triangulate();
 
-    if (vtk_output_dir) {
-      spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
-      stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, sdf_surface_adapter,
-                       meshing_algorithm.triangulation());
-    }
-    if (stats_output_file) {
-      spdlog::info("Writing statistics to {}...", stats_output_file->string());
-      stmesh::writeStatistics(*stats_output_file, sdf_surface_adapter, meshing_algorithm.triangulation());
+      spdlog::info("Meshing complete! Number of elements: {}",
+                   std::distance(meshing_algorithm.triangulation().begin(), meshing_algorithm.triangulation().end()));
+
+      if (vtk_output_dir) {
+        spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
+        stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, surface_adapter,
+                         meshing_algorithm.triangulation());
+      }
+      if (mixd_output_file) {
+        spdlog::info("Writing MIXD files to {}...", mixd_output_file->string());
+        if (use_edt_file_boundary_regions)
+          stmesh::writeMixd(*mixd_output_file, surface_adapter, meshing_algorithm.triangulation(), *edt_reader);
+        else
+          stmesh::writeMixd(*mixd_output_file, surface_adapter, meshing_algorithm.triangulation(),
+                            hypercube_boundary_manager);
+      }
+      if (stats_output_file) {
+        spdlog::info("Writing statistics to {}...", stats_output_file->string());
+        stmesh::writeStatistics(*stats_output_file, surface_adapter, meshing_algorithm.triangulation());
+      }
+    };
+
+    if (edt_file) {
+      spdlog::info("Reading EDT file {}...", *edt_file);
+      const auto edt_reader = std::make_shared<stmesh::EDTReader<4>>(*edt_file);
+      const stmesh::EDTSurfaceAdapter adapter(edt_reader);
+      spdlog::info("EDT file read successfully! Bounding box: min=({}), max=({})",
+                   edt_reader->boundingBox().min().transpose(), edt_reader->boundingBox().max().transpose());
+      mesh(adapter, edt_reader);
+    } else {
+      const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
+          stmesh::FLOAT_T(30.0),
+          stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(30.0)});
+
+      mesh(sdf_surface_adapter);
     }
     spdlog::info("Done!");
     return EXIT_SUCCESS;

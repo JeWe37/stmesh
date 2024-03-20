@@ -6,6 +6,7 @@
 #include "edt.hpp"
 #include "geometric_simplex.hpp"
 #include "meshing_algorithm.hpp"
+#include "mixd_writer.hpp"
 #include "sdf.hpp"
 #include "sdf_mixins.hpp"
 #include "statistics_collector.hpp"
