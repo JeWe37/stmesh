@@ -50,6 +50,24 @@ int main(int argc, const char **argv) {
         ->default_val(stmesh::FLOAT_T(0.5))
         ->needs(vtk_output_dir_option);
 
+    std::string vtk_out_coord_format;
+    app.add_option("--vtk-out-coord-format", vtk_out_coord_format, "Format string for the coordinates file name")
+        ->default_val("")
+        ->needs(vtk_output_dir_option);
+
+    std::string vtk_output_vtp_format;
+    app.add_option("--vtk-output-vtp-format", vtk_output_vtp_format, "Format string for the vtp output files")
+        ->default_val("")
+        ->needs(vtk_output_dir_option);
+
+    size_t vtk_output_blocks;
+    app.add_option("--vtk-output-blocks", vtk_output_blocks, "Number of blocks for vtk output")
+        ->default_val(1)
+        ->needs(vtk_output_dir_option);
+
+    stmesh::FLOAT_T output_scale;
+    app.add_option("--output-scale", output_scale, "Scale factor for output")->default_val(stmesh::FLOAT_T(1.0));
+
     stmesh::FLOAT_T rho_bar;
     app.add_option("--rho-bar", rho_bar, "Rho bar for meshing algorithm")->default_val(stmesh::FLOAT_T(20.0));
 
@@ -119,18 +137,30 @@ int main(int argc, const char **argv) {
       spdlog::info("Meshing complete! Number of elements: {}",
                    std::distance(meshing_algorithm.triangulation().begin(), meshing_algorithm.triangulation().end()));
 
+      const stmesh::FLOAT_T min_time =
+          (!vtk_out_coord_format.empty() || mixd_output_file) ? meshing_algorithm.minTime() : stmesh::FLOAT_T();
+
+      spdlog::debug("Minimum time in mesh: {}", min_time);
+
       if (vtk_output_dir) {
         spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
-        stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, surface_adapter,
-                         meshing_algorithm.triangulation());
+        if (use_edt_file_boundary_regions)
+          stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, surface_adapter,
+                           meshing_algorithm.triangulation(), output_scale, min_time, vtk_output_vtp_format,
+                           *edt_reader, vtk_out_coord_format, vtk_output_blocks);
+        else
+          stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, surface_adapter,
+                           meshing_algorithm.triangulation(), output_scale, min_time, vtk_output_vtp_format,
+                           hypercube_boundary_manager, vtk_out_coord_format, vtk_output_blocks);
       }
       if (mixd_output_file) {
         spdlog::info("Writing MIXD files to {}...", mixd_output_file->string());
         if (use_edt_file_boundary_regions)
-          stmesh::writeMixd(*mixd_output_file, surface_adapter, meshing_algorithm.triangulation(), *edt_reader);
+          stmesh::writeMixd(*mixd_output_file, surface_adapter, meshing_algorithm.triangulation(), *edt_reader,
+                            output_scale, min_time);
         else
           stmesh::writeMixd(*mixd_output_file, surface_adapter, meshing_algorithm.triangulation(),
-                            hypercube_boundary_manager);
+                            hypercube_boundary_manager, output_scale, min_time);
       }
       if (stats_output_file) {
         spdlog::info("Writing statistics to {}...", stats_output_file->string());

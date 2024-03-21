@@ -99,4 +99,6 @@ function(stmesh_setup_dependencies)
   endif()
 
   find_package(Boost 1.74.0 REQUIRED)
+
+  find_package(OpenMP 4.5 REQUIRED)
 endfunction()

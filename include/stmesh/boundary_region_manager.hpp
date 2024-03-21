@@ -20,6 +20,21 @@ concept BoundaryRegionManager = requires(const T t, Vector4F vec) {
   { t.findBoundaryRegion(vec) } -> std::convertible_to<size_t>;
 };
 
+/// A boundary region manager for no boundary regions
+/**
+ * A boundary region manager for no boundary regions. This boundary region manager always returns 0 for any point.
+ */
+class NoopBoundaryManager {
+public:
+  /// Find the boundary region of a point
+  /**
+   * This function always returns 0. The parameter is unused.
+   *
+   * @return The index of the boundary region that the point is inside
+   */
+  [[nodiscard]] static size_t findBoundaryRegion(const Vector4F &) noexcept;
+};
+
 /// A boundary region manager for a hypercube boundary regions
 /**
  * A boundary region manager for a hypercube boundary regions. This boundary region manager assigns boundary regions to

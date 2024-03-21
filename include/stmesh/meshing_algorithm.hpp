@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <concepts> // IWYU pragma: keep
+#include <limits>
 #include <optional>
 #include <random>
 #include <set>
@@ -480,6 +481,27 @@ public:
     std::vector<typename detail::Triangulation::FullCellHandle> inserted =
         triangulation_.commitUncommitted(center_full_cell);
     updateHeap(inserted, removed, dependent_full_cells);
+  }
+
+  /// Min time of the triangulation
+  /**
+   * The minimum time of the triangulation. The minimum time of the triangulation is the minimum time of a vertex that
+   * is part of a full cell whose circumcenter is inside the surface.
+   *
+   * @return The minimum time of the triangulation
+   */
+  [[nodiscard]] FLOAT_T minTime() const noexcept {
+    FLOAT_T min_time = std::numeric_limits<FLOAT_T>::infinity();
+    for (const auto &full_cell : triangulation_) {
+      if (surface_.inside(
+              triangulation_.fullCellSimplex(typename detail::Triangulation::FullCellConstHandle{&full_cell})
+                  .circumsphere()
+                  .center())) {
+        for (int i = 0; i < 5; ++i)
+          min_time = std::min(min_time, full_cell.vertex(i)->point()[3]);
+      }
+    }
+    return min_time;
   }
 };
 } // namespace stmesh

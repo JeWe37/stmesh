@@ -188,7 +188,7 @@ public:
    */
   [[nodiscard]] CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel>
   planeCut(const Eigen::Hyperplane<FLOAT_T, static_cast<int>(D)> &plane) const
-  requires(D == 4 && N == 5);
+  requires(D == 4 && N >= 4);
 
   /// Get the bounding box of the simplex
   /**

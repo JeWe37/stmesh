@@ -286,6 +286,16 @@ public:
    */
   [[nodiscard]] bool isGoodPoint(VertexHandle vertex, FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T max_radius) const;
 
+  /// Checks if a full cell is infinite
+  /**
+   * Checks if a full cell is infinite. This function checks if a full cell is infinite, i.e. if it is a finite full
+   * cell or an infinite full cell.
+   *
+   * @param full_cell The full cell to check
+   * @return Whether the full cell is infinite
+   */
+  [[nodiscard]] bool isInfinite(FullCellConstHandle full_cell) const noexcept;
+
   /// Gets the bounding box of the triangulation
   /**
    * Gets the bounding box of the triangulation. This function returns the bounding box of the triangulation, initially

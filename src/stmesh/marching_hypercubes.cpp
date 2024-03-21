@@ -19,7 +19,6 @@
 #include "stmesh/utility.hpp"
 
 namespace stmesh {
-// NOLINTNEXTLINE(readability-function-cognitive-complexity)
 std::optional<Vector4F> surfaceRayIntersection(const Vector4F &start, const Vector4F &end,
                                                const std::array<bool, (1U << 4U)> &corner_values, bool *inside) {
   using Kernel = CGAL::Epick_d<CGAL::Dimension_tag<4>>;

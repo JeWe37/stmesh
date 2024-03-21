@@ -10,6 +10,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <spdlog/spdlog.h>
+
 #include "boundary_region_manager.hpp" // IWYU pragma: keep
 #include "geometric_simplex.hpp"
 #include "sdf.hpp"
@@ -23,10 +25,13 @@ void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::pa
                const std::filesystem::path &mien_file, const std::filesystem::path &mrng_file, size_t number_elements,
                size_t number_nodes);
 
-std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Vector4F> &vertices);
+std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Vector4F> &vertices,
+                                stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time);
 
 std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view extension,
                                    const std::vector<std::array<size_t, 5>> &full_cell_vertex_ids);
+
+bool positivePentatopeElementDet(const std::array<size_t, 5> &vertex_ids, const std::vector<Vector4F> &vertices);
 } // namespace detail
 
 /// Write a MIXD file from a triangulation
@@ -45,12 +50,14 @@ std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view 
  * @param triangulation The triangulation to write to the MIXD file.
  * @param boundary_region_manager The boundary region manager to use to determine the boundary regions of the faces of
  * the mesh.
+ * @param scale The scale for the mxyz file. Defaults to 1.
+ * @param min_time The minimum time of the triangulation for offsetting the mxyz file. Defaults to 0.
  * @tparam ExtraData The type of extra data stored in the triangulation.
  */
 template <typename ExtraData>
 void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unused]] const SurfaceAdapter4 auto &surface,
-               const Triangulation<ExtraData> &triangulation,
-               const BoundaryRegionManager auto &boundary_region_manager) {
+               const Triangulation<ExtraData> &triangulation, const BoundaryRegionManager auto &boundary_region_manager,
+               stmesh::FLOAT_T scale = 1, stmesh::FLOAT_T min_time = 0) {
   std::unordered_map<Vector4F, size_t, Vector4FHash> vertex_map;
   std::vector<Vector4F> vertices;
   std::vector<std::array<size_t, 5>> full_cell_vertex_ids;
@@ -67,6 +74,11 @@ void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unuse
           vertices.emplace_back(simplex.vertices().col(i));
         vertex_ids.at(static_cast<size_t>(i)) = it->second;
       }
+      if (!detail::positivePentatopeElementDet(vertex_ids, vertices)) {
+        spdlog::warn("Pentatope has negative determinant! Mesh will be tangled.");
+        break;
+      }
+      std::ranges::transform(vertex_ids, vertex_ids.begin(), [&](size_t idx) { return idx + 1; });
       full_cell_vertex_ids.emplace_back(vertex_ids);
       std::array<size_t, 5> face_boundary_ids{};
       std::array<size_t, 5> vertex_boundary_ids{};
@@ -78,17 +90,21 @@ void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unuse
       std::partial_sort(
           vertex_boundary_idxs.begin(), vertex_boundary_idxs.begin() + 2, vertex_boundary_idxs.end(),
           [&](size_t lhs, size_t rhs) { return vertex_boundary_ids.at(lhs) > vertex_boundary_ids.at(rhs); });
+      constexpr std::array<size_t, 5> kToOmit{4, 3, 2, 0, 1};
       // first two elements are now first two largest values
       for (size_t i = 0; i < 5; ++i) {
+        size_t j = kToOmit.at(i);
         face_boundary_ids.at(i) =
-            surface.inside(triangulation.fullCellSimplex(cell.neighbor(i)).circumsphere().center()) ? 0
-            : i != vertex_boundary_idxs[0] ? vertex_boundary_ids.at(vertex_boundary_idxs[0])
+            surface.inside(triangulation.fullCellSimplex(cell.neighbor(j)).circumsphere().center()) &&
+                    !triangulation.isInfinite(cell.neighbor(j))
+                ? 0
+            : j != vertex_boundary_idxs[0] ? vertex_boundary_ids.at(vertex_boundary_idxs[0])
                                            : vertex_boundary_ids.at(vertex_boundary_idxs[1]);
       }
       full_cell_face_ids.emplace_back(face_boundary_ids);
     }
   }
-  std::filesystem::path mxyz_file = detail::writeMxyz(file, vertices);
+  std::filesystem::path mxyz_file = detail::writeMxyz(file, vertices, scale, min_time);
   std::filesystem::path mien_file = detail::writeIntMixd(file, ".mien", full_cell_vertex_ids);
   std::filesystem::path mrng_file = detail::writeIntMixd(file, ".mrng", full_cell_face_ids);
   detail::writeMinf(file, mxyz_file, mien_file, mrng_file, full_cell_vertex_ids.size(), vertices.size());
