@@ -65,7 +65,8 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
   Tree tree_removal_;
   Tree tree_insertion_;
 
-  FLOAT_T rho_bar_, tau_bar_, zeta_, b_, delta_;
+  FLOAT_T rho_bar_, tau_bar_, zeta_, b_, delta_, max_radius_;
+  bool disable_rule6_;
 
   void updateHeap(const std::vector<typename detail::Triangulation::FullCellHandle> &inserted,
                   const std::vector<detail::CellHandle> &removed,
@@ -109,6 +110,7 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
   friend struct detail::Rule3;
   friend struct detail::Rule4;
   friend struct detail::Rule5;
+  friend struct detail::Rule6;
   friend struct detail::Complete;
 
 public:
@@ -198,20 +200,24 @@ public:
    * Constructs a meshing algorithm. The meshing algorithm is constructed from a surface adapter, a rho bar, a tau bar,
    * a zeta, a b, and a delta. The rho bar is the maximum radius-edge ratio of a pentatope. The tau bar is the minimum
    * quality of a pentatope. The zeta is the factor by which the picking region is scaled. The b is the maximum radius
-   * of small simplices. The delta is the maximum size of simplices. should maintain.
+   * of small simplices. The delta is the maximum size of simplices. should maintain. The max radius is the maximum
+   * radius of a full cell. The seed is an optional seed for the random number generator.
    *
    * @param surface The surface adapter
    * @param rho_bar The maximum radius-edge ratio of a pentatope
    * @param tau_bar The minimum quality of a pentatope
    * @param zeta The factor by which the picking region is scaled
    * @param b The maximum radius of small simplices
-   * @param delta The maximum size of simplicesj
+   * @param delta The maximum size of simplices
+   * @param max_radius The maximum radius of a full cell
    * @param seed The seed for the random number generator
+   * @param disable_rule6 Whether to disable rule 6
    */
   MeshingAlgorithm(const Surface &surface, FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T zeta, FLOAT_T b, FLOAT_T delta,
-                   std::optional<typename Random::result_type> seed = std::nullopt)
+                   FLOAT_T max_radius, std::optional<typename Random::result_type> seed = std::nullopt,
+                   bool disable_rule6 = false)
       : triangulation_(calculateBoundingBox(surface, delta)), surface_(surface), gen_(), rho_bar_(rho_bar),
-        tau_bar_(tau_bar), zeta_(zeta), b_(b), delta_(delta) {
+        tau_bar_(tau_bar), zeta_(zeta), b_(b), delta_(delta), max_radius_(max_radius), disable_rule6_(disable_rule6) {
     if (seed)
       gen_.seed(*seed);
     for (auto &full_cell : triangulation_) {
@@ -233,12 +239,8 @@ public:
    */
   [[nodiscard]] static Eigen::AlignedBox<FLOAT_T, 4> calculateBoundingBox(const Surface &surface, FLOAT_T delta) {
     Eigen::AlignedBox<FLOAT_T, 4> bounding_box = surface.boundingBox();
-    for (const Vector4F &corner : allCorners(bounding_box)) {
-      Vector4F cfp = surface.closestPoint(corner);
-      // TODO: fix if deltaSurface is ever changed
-      FLOAT_T add_dist = std::max(FLOAT_T{0}, 2 * delta - (corner - cfp).norm());
-      bounding_box.extend(corner + add_dist * (corner - cfp).normalized());
-    }
+    bounding_box.min().array() -= 2 * delta;
+    bounding_box.max().array() += 2 * delta;
     return bounding_box;
   }
 
@@ -287,7 +289,10 @@ public:
    * @return The first rule that is not satisfied by the full cell
    */
   [[nodiscard]] detail::Rules rulesSatisfied(const typename detail::Triangulation::FullCellHandle &full_cell) noexcept {
-    return rulesSatisfiedImpl<detail::Rule1, detail::Rule2, detail::Rule3, detail::Rule4, detail::Rule5,
+    if (disable_rule6_)
+      return rulesSatisfiedImpl<detail::Rule1, detail::Rule2, detail::Rule3, detail::Rule4, detail::Rule5,
+                                detail::Complete>(full_cell, {});
+    return rulesSatisfiedImpl<detail::Rule1, detail::Rule2, detail::Rule3, detail::Rule4, detail::Rule5, detail::Rule6,
                               detail::Complete>(full_cell, {});
   }
 
@@ -430,11 +435,17 @@ public:
   detail::Triangulation::VertexHandle pickGoodPoint(const Eigen::Matrix<FLOAT_T, 4, N> vertices,
                                                     detail::Triangulation::FullCellHandle hint = {}) noexcept {
     // TODO: can be sped up, this is comically inefficient
+    constexpr int kMaxIterations = 1000;
+    int iterations_remaining = kMaxIterations;
     while (true) {
       auto [sample, radius] = sampleFromPickingRegion(vertices);
       detail::Triangulation::VertexHandle vertex = insert(sample, hint, N == 4);
       if (triangulation_.isGoodPoint(vertex, rho_bar_, tau_bar_, b_ * radius))
         return vertex;
+      if (!iterations_remaining--) {
+        spdlog::warn("Failed to pick good point after {} iterations. Returning random point.", kMaxIterations);
+        return vertex;
+      }
       remove(vertex);
     }
   }

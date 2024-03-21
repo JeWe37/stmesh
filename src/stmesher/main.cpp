@@ -3,6 +3,7 @@
 #include <exception>
 #include <filesystem>
 #include <iterator>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -83,6 +84,13 @@ int main(int argc, const char **argv) {
     stmesh::FLOAT_T delta;
     app.add_option("--delta", delta, "delta for meshing algorithm")->default_val(stmesh::FLOAT_T(5.0));
 
+    stmesh::FLOAT_T max_radius;
+    app.add_option("--max-radius", max_radius, "Maximum radius for the meshing algorithm")
+        ->default_val(std::numeric_limits<stmesh::FLOAT_T>::infinity());
+
+    bool disable_rule6{};
+    app.add_flag("--disable-rule6", disable_rule6, "Disable picking region");
+
     std::optional<unsigned> seed;
     app.add_option("--seed", seed, "Seed for random number generation");
     // NOLINTEND(*-magic-numbers,cppcoreguidelines-init-variables)
@@ -128,7 +136,8 @@ int main(int argc, const char **argv) {
     const auto mesh = [&](const auto &surface_adapter,
                           const std::shared_ptr<stmesh::EDTReader<4>> &edt_reader = nullptr) {
       // NOLINTNEXTLINE(misc-const-correctness)
-      stmesh::MeshingAlgorithm meshing_algorithm(surface_adapter, rho_bar, tau_bar, zeta, b, delta, seed);
+      stmesh::MeshingAlgorithm meshing_algorithm(surface_adapter, rho_bar, tau_bar, zeta, b, delta, max_radius, seed,
+                                                 disable_rule6);
 
       spdlog::info("Setup complete. Starting meshing...");
 

@@ -39,15 +39,17 @@ void writeStatistics([[maybe_unused]] const std::filesystem::path &file,
                      const Triangulation<ExtraData> &triangulation) {
   std::ofstream out(file);
   size_t full_cell_id = 0;
-  out << "full_cell_id,content,shortest_edge_length,circumsphere_radius,radius_edge_ratio,quality\n";
+  out << "full_cell_id,content,shortest_edge_length,circumsphere_radius,radius_edge_ratio,quality,metric1,metric2,"
+         "metric3\n";
   std::ostream_iterator<char> out_it(out);
   for (const auto &cell : triangulation) {
     GeometricSimplex<4> simplex =
         triangulation.fullCellSimplex(typename Triangulation<ExtraData>::FullCellConstHandle{&cell});
     HyperSphere4 circumsphere = simplex.circumsphere();
     if (surface.inside(circumsphere.center()))
-      fmt::format_to(out_it, "{},{},{},{},{},{}\n", full_cell_id++, simplex.content(), simplex.shortestEdgeLength(),
-                     circumsphere.radius(), simplex.radiusEdgeRatio(), simplex.quality());
+      fmt::format_to(out_it, "{},{},{},{},{},{},{},{},{}\n", full_cell_id++, simplex.content(),
+                     simplex.shortestEdgeLength(), circumsphere.radius(), simplex.radiusEdgeRatio(), simplex.quality(),
+                     simplex.metric1(), simplex.metric2(), simplex.metric3());
   }
 }
 } // namespace stmesh

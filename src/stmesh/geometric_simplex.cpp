@@ -4,7 +4,6 @@
 #include <array>
 #include <cmath>
 #include <cstddef>
-#include <limits>
 #include <utility>
 #include <vector>
 
@@ -53,14 +52,8 @@ template <unsigned D, unsigned N>
 }
 
 template <unsigned D, unsigned N> [[nodiscard]] FLOAT_T GeometricSimplex<D, N>::shortestEdgeLength() const noexcept {
-  FLOAT_T shortest = std::numeric_limits<FLOAT_T>::max();
-  for (unsigned i = 0; i < N; ++i) {
-    for (unsigned j = i + 1; j < N; ++j) {
-      const FLOAT_T length = (vertices_.col(i) - vertices_.col(j)).norm();
-      shortest = std::min(shortest, length);
-    }
-  }
-  return shortest;
+  auto edge_lengths = allSquaredEdgeLengths();
+  return std::sqrt(*std::ranges::min_element(edge_lengths));
 }
 
 template <unsigned D, unsigned N> [[nodiscard]] FLOAT_T GeometricSimplex<D, N>::content() const noexcept {
@@ -177,6 +170,66 @@ template <unsigned D, unsigned N>
   for (const auto &vert : vertices_.colwise())
     box.extend(vert);
   return box;
+}
+
+template <unsigned D, unsigned N>
+[[nodiscard]] std::array<FLOAT_T, nChoosek(N, 2)> GeometricSimplex<D, N>::allSquaredEdgeLengths() const noexcept {
+  std::array<FLOAT_T, nChoosek(N, 2)> result{};
+  size_t i = 0;
+  for (unsigned j = 0; j < N; ++j) {
+    for (unsigned k = j + 1; k < N; ++k)
+      result.at(i++) = (vertices_.col(j) - vertices_.col(k)).squaredNorm();
+  }
+  return result;
+}
+
+template <unsigned D, unsigned N>
+[[nodiscard]] FLOAT_T GeometricSimplex<D, N>::omega() const noexcept
+requires(D == 4 && N == 5)
+{
+  auto l = allSquaredEdgeLengths();
+  auto square = [](auto x) { return x * x; };
+  // NOLINTBEGIN(*-magic-numbers)
+  return FLOAT_T(600.0) * square(l[0] - l[1]) + FLOAT_T(900.0) * square(l[4]) +
+         FLOAT_T(100.0) * square(FLOAT_T(-2.0) * (l[0] + l[1]) + l[4]) +
+         FLOAT_T(75.0) * square(l[0] - l[1] - FLOAT_T(3.0) * (l[5] + l[7])) +
+         FLOAT_T(25.0) * square(l[0] + l[1] + l[4] - FLOAT_T(3.0) * (l[2] + l[5] + l[7])) +
+         FLOAT_T(25.0) *
+             square(l[0] + l[1] - FLOAT_T(6.0) * l[2] - FLOAT_T(2.0) * l[4] + FLOAT_T(3.0) * (l[5] + l[7])) +
+         FLOAT_T(45.0) * square(l[0] - l[1] + l[5] - FLOAT_T(4.0) * l[6] - l[7] + FLOAT_T(4.0) * l[8]) +
+         FLOAT_T(15.0) * square(l[0] + l[1] + FLOAT_T(2.0) * l[2] - FLOAT_T(8.0) * l[3] - FLOAT_T(2.0) * l[4] - l[5] +
+                                FLOAT_T(4.0) * l[6] - l[7] + FLOAT_T(4.0) * l[8]) +
+         FLOAT_T(30.0) * square(-l[0] - l[1] + l[2] + FLOAT_T(2.0) * l[3] - l[4] + l[5] + FLOAT_T(2.0) * l[6] + l[7] +
+                                FLOAT_T(2.0) * l[8] - FLOAT_T(6.0) * l[9]) +
+         FLOAT_T(9.0) * square(l[0] + l[1] + l[2] - FLOAT_T(4.0) * l[3] + l[4] + l[5] - FLOAT_T(4.0) * l[6] + l[7] -
+                               FLOAT_T(4.0) * (l[8] + l[9]));
+  // NOLINTEND(*-magic-numbers)
+}
+
+template <unsigned D, unsigned N>
+[[nodiscard]] FLOAT_T GeometricSimplex<D, N>::metric1() const noexcept
+requires(D == 4 && N == 5)
+{
+  auto l = allSquaredEdgeLengths();
+  // NOLINTNEXTLINE(*-magic-numbers)
+  return std::pow(FLOAT_T(5.0), FLOAT_T(3.0 / 4.0)) * std::sqrt(FLOAT_T(384.0) * content()) /
+         std::accumulate(l.begin(), l.end(), FLOAT_T(0.0));
+}
+
+template <unsigned D, unsigned N>
+[[nodiscard]] FLOAT_T GeometricSimplex<D, N>::metric2() const noexcept
+requires(D == 4 && N == 5)
+{
+  auto l = allSquaredEdgeLengths();
+  // NOLINTNEXTLINE(*-magic-numbers)
+  return FLOAT_T(6.0) * std::accumulate(l.begin(), l.end(), FLOAT_T(0.0)) / std::sqrt(omega());
+}
+
+template <unsigned D, unsigned N>
+[[nodiscard]] FLOAT_T GeometricSimplex<D, N>::metric3() const noexcept
+requires(D == 4 && N == 5)
+{
+  return metric1() * metric2();
 }
 
 template <unsigned D, unsigned N>

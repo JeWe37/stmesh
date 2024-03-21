@@ -198,6 +198,50 @@ public:
    */
   [[nodiscard]] Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> boundingBox() const noexcept;
 
+  /// Returns all squared edge lengths
+  /**
+   * Returns all squared edge lengths.
+   *
+   * @return All squared edge lengths
+   */
+  [[nodiscard]] std::array<FLOAT_T, nChoosek(N, 2)> allSquaredEdgeLengths() const noexcept;
+
+  /// Calculate omega value
+  /**
+   * Calculate omega value. The omega value is used to calculate the quality metrics. Only available for pentatopes.
+   *
+   * @return The omega value
+   */
+  [[nodiscard]] FLOAT_T omega() const noexcept
+  requires(D == 4 && N == 5);
+
+  /// Calculate the first metric
+  /**
+   * Calculate the first metric. Only available for pentatopes.
+   *
+   * @return The first metric
+   */
+  [[nodiscard]] FLOAT_T metric1() const noexcept
+  requires(D == 4 && N == 5);
+
+  /// Calculate the second metric
+  /**
+   * Calculate the second metric. Only available for pentatopes.
+   *
+   * @return The second metric
+   */
+  [[nodiscard]] FLOAT_T metric2() const noexcept
+  requires(D == 4 && N == 5);
+
+  /// Calculate the third metric
+  /**
+   * Calculate the third metric. Only available for pentatopes.
+   *
+   * @return The third metric
+   */
+  [[nodiscard]] FLOAT_T metric3() const noexcept
+  requires(D == 4 && N == 5);
+
   /// Get all sub simplicies of the simplex
   /**
    * Get all sub simplicies of the simplex. These are the sub simplices of any dimension from L to M.
