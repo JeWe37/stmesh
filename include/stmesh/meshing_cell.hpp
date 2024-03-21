@@ -43,14 +43,20 @@ struct Rule {
   }
 
   template <typename MeshingAlgorithm>
-  void remove(MeshingAlgorithm &meshing_algorithm, const Triangulation::FullCellHandle full_cell) const {
-    // if a cell that has passed rule 0 is removed, it must be complete
-    // the question: what is z, need to persist that somehow
-    // or just recompute it, but that's expensive(surface.closestPoint might be slow)
+  void removeZ0Dependency(MeshingAlgorithm &meshing_algorithm, const Triangulation::FullCellHandle full_cell) const {
     if (z0 != Vector4F::Constant(std::numeric_limits<FLOAT_T>::infinity())) {
       HyperSphere4 sphere{meshing_algorithm.deltaSurface(z0), z0};
       meshing_algorithm.removePointDependency(sphere, full_cell, false);
     }
+  }
+
+  template <typename MeshingAlgorithm>
+  void remove(MeshingAlgorithm &meshing_algorithm, const Triangulation::FullCellHandle full_cell) const {
+    // if a cell that has passed rule 0 is removed, it must be complete
+    // the question: what is z, need to persist that somehow
+    // or just recompute it, but that's expensive(surface.closestPoint might be slow)
+    removeZ0Dependency(meshing_algorithm, full_cell);
+    meshing_algorithm.decrementRemaining();
   }
 };
 
@@ -79,10 +85,14 @@ struct Rule1 : Rule {
 
       // since deltaSurface is constant, this test can just be done via a nearest neighbor search with appropriate bound
       HyperSphere4 sphere{meshing_algorithm.deltaSurface(z0), z0};
-      if (triangulation.verticesInRadius(z0, sphere.radius()).empty()) {
+      // if any vertices in radius are feature vertices, dont apply.
+      if (!std::ranges::any_of(
+              triangulation.verticesInRadius(z0, sphere.radius()),
+              [](const detail::Triangulation::VertexHandle handle) { return handle->data().nonfree_vertex; })) {
         // if we insert a point, this might start failing, making the cell complete
         if (!dry_run)
           meshing_algorithm.addPointDependency(sphere, full_cell);
+        meshing_algorithm.incrementRemaining();
         return 1;
       } else {
         // if we remove a point, this might start passing, making the cell incomplete
@@ -105,6 +115,7 @@ struct Rule1 : Rule {
     // if a cell that is rule 0 is removed, it must be incomplete
     HyperSphere4 sphere{meshing_algorithm.deltaSurface(z0), z0};
     meshing_algorithm.removePointDependency(sphere, full_cell);
+    meshing_algorithm.decrementRemaining();
   }
 
   // issue: what about the removal of a cell that is complete for rule0?
@@ -128,6 +139,7 @@ struct Rule2 : Rule {
       if (circumsphere.radius() >= 2 * meshing_algorithm.deltaSurface(surface.closestPoint(z))) {
         if ((z_outside = !triangulation.boundingBox().contains(z)))
           z = z.cwiseMax(triangulation.boundingBox().min()).cwiseMin(triangulation.boundingBox().max());
+        meshing_algorithm.incrementRemaining();
         return 1;
       }
     }
@@ -152,7 +164,11 @@ struct Rule3 : Rule {
     GeometricSimplex<4> simplex = triangulation.fullCellSimplex(full_cell);
     HyperSphere4 circumsphere = simplex.circumsphere();
     z = circumsphere.center();
-    return surface.inside(z) && circumsphere.radius() >= meshing_algorithm.max_radius_;
+    if (surface.inside(z) && circumsphere.radius() >= meshing_algorithm.max_radius_) {
+      meshing_algorithm.incrementRemaining();
+      return 1;
+    }
+    return 0;
   }
 
   template <typename MeshingAlgorithm>
@@ -172,7 +188,11 @@ struct Rule4 : Rule {
     const detail::Triangulation &triangulation = meshing_algorithm.triangulation_;
     GeometricSimplex<4> simplex = triangulation.fullCellSimplex(full_cell);
     z = simplex.circumsphere().center();
-    return surface.inside(z) && simplex.radiusEdgeRatio() >= meshing_algorithm.rho_bar_;
+    if (surface.inside(z) && simplex.radiusEdgeRatio() >= meshing_algorithm.rho_bar_) {
+      meshing_algorithm.incrementRemaining();
+      return 1;
+    }
+    return 0;
   }
 
   template <typename MeshingAlgorithm>
@@ -198,6 +218,7 @@ struct Rule5 : Rule {
     if (unsigned dim = simplex.sliverSimplex(meshing_algorithm.rho_bar_, meshing_algorithm.tau_bar_);
         surface.inside(circumsphere.center()) && dim) {
       vertices = simplex.vertices();
+      meshing_algorithm.incrementRemaining();
       return prio = dim;
     }
     return 0;
@@ -244,6 +265,7 @@ struct Rule6 : Rule {
           if (meshing_algorithm.voronoiDual(vertices, &dependent_neighbor_info).has_value()) {
             if (!dry_run && dependent_neighbor_info.first != full_cell)
               std::apply(MeshingAlgorithm::addDependency, dependent_neighbor_info);
+            meshing_algorithm.incrementRemaining();
             return 1;
           }
         }
@@ -262,6 +284,7 @@ struct Rule6 : Rule {
         if (!dry_run && dependent_neighbor_info.first != full_cell)
           std::apply(MeshingAlgorithm::addDependency, dependent_neighbor_info);
         vertices = it->vertices();
+        meshing_algorithm.incrementRemaining();
         return 1;
       }
       return 0;
@@ -289,7 +312,7 @@ struct Complete : Rule {
   static constexpr inline int kIndex = 6;
 
   template <typename MeshingAlgorithm>
-  static unsigned check(const MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell,
+  static unsigned check(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell,
                         bool dry_run = false) {
     // TODO: optimally these rechecks only need to recheck rule5 i think
     if (!dry_run) {
@@ -298,6 +321,11 @@ struct Complete : Rule {
                                         meshing_algorithm.triangulation().mirrorIndex(full_cell, i));
     }
     return 1;
+  }
+
+  template <typename MeshingAlgorithm>
+  void remove(MeshingAlgorithm &meshing_algorithm, const Triangulation::FullCellHandle full_cell) const {
+    removeZ0Dependency(meshing_algorithm, full_cell);
   }
 };
 
