@@ -169,7 +169,7 @@ template <typename ExtraData>
 }
 
 template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::facetMirrorVertices(Facet facet) const noexcept
+[[nodiscard]] auto Triangulation<ExtraData>::facetMirrorVertices(Facet facet) const
     -> std::tuple<std::tuple<VertexHandle, int, FullCellHandle>,
                   std::optional<std::tuple<VertexHandle, int, FullCellHandle>>> {
   const FullCellHandle &full_cell = facet.full_cell();
@@ -238,7 +238,7 @@ template <typename ExtraData>
 }
 
 template <typename ExtraData>
-[[nodiscard]] bool Triangulation<ExtraData>::isInfinite(FullCellConstHandle full_cell) const noexcept {
+[[nodiscard]] bool Triangulation<ExtraData>::isInfinite(FullCellConstHandle full_cell) const {
   return triangulation_.is_infinite(full_cell);
 }
 

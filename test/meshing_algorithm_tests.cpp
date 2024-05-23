@@ -50,8 +50,7 @@ void verifyMeshingAlgorithm(auto &meshing_algorithm, bool disable_rule6 = false)
     REQUIRE((**it).full_cell == full_cell_handle);
     const auto rule_index = static_cast<size_t>(std::visit([](const auto &r) { return r.kIndex; }, (**it).rule));
     const unsigned rule_priority = std::visit([](const auto &r) { return r.priority(); }, (**it).rule);
-    if (rule_index != stmesh::detail::Complete::kIndex ||
-        (disable_rule6 && rule_index == stmesh::detail::Rule6::kIndex)) {
+    if (rule_index != stmesh::detail::Complete::kIndex || disable_rule6) {
       if (!std::visit([&](auto &r) { return r.check(meshing_algorithm, full_cell_handle, true); },
                       rule_list.at(rule_index)))
         WARN("Issue!");

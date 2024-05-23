@@ -5,37 +5,22 @@ FROM ubuntu:${VARIANT}
 # Restate the variant to use it later on in the llvm and cmake installations
 ARG VARIANT
 
-# Install necessary packages available from standard repos
+# Install necessary packages available from standard repos including python depends
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
         software-properties-common wget apt-utils file zip bsdmainutils \
         openssh-client gpg-agent socat rsync \
         make ninja-build git \
-        python3 python3-pip
-
-COPY requirements.txt /requirements.txt
-
-# Install conan and pre-commit
-RUN python3 -m pip install --upgrade pip setuptools && \
-    python3 -m pip install conan pre-commit && \
-    python3 -m pip install -r /requirements.txt && \
-    conan --version
-
-# By default, anything you run in Docker is done as superuser.
-# Conan runs some install commands as superuser, and will prepend `sudo` to
-# these commands, unless `CONAN_SYSREQUIRES_SUDO=0` is in your env variables.
-ENV CONAN_SYSREQUIRES_SUDO 0
-# Some packages request that Conan use the system package manager to install
-# a few dependencies. This flag allows Conan to proceed with these installations;
-# leaving this flag undefined can cause some installation failures.
-ENV CONAN_SYSREQUIRES_MODE enabled
+        python3 python3-pip python3-venv \
+        pre-commit python3-scipy python3-numpy
 
 # User-settable versions:
 # This Dockerfile should support gcc-[7, 8, 9, 10, 11] and clang-[10, 11, 12, 13]
 ARG GCC_VER="11"
 # Add gcc-${GCC_VER}
-RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test && \
-    apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
+# temporarily disabled toolchain, not currently required
+# RUN add-apt-repository -y ppa:ubuntu-toolchain-r/test 
+RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
         gcc-${GCC_VER} g++-${GCC_VER} gdb
 
@@ -45,11 +30,12 @@ RUN update-alternatives --install /usr/bin/g++ g++ $(which g++-${GCC_VER}) 100
 
 ARG LLVM_VER="13"
 # Add clang-${LLVM_VER}
-ARG LLVM_URL="http://apt.llvm.org/${VARIANT}/"
-ARG LLVM_PKG="llvm-toolchain-${VARIANT}-${LLVM_VER}"
-RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - 2>/dev/null && \
-    add-apt-repository -y "deb ${LLVM_URL} ${LLVM_PKG} main" && \
-    apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
+# temporarily disabled llvm repo, not currently required
+#ARG LLVM_URL="http://apt.llvm.org/${VARIANT}/"
+#ARG LLVM_PKG="llvm-toolchain-${VARIANT}-${LLVM_VER}"
+#RUN wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - 2>/dev/null && \
+#    add-apt-repository -y "deb ${LLVM_URL} ${LLVM_PKG} main"
+RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
     apt-get install -y --no-install-recommends \
         clang-${LLVM_VER} lldb-${LLVM_VER} lld-${LLVM_VER} clangd-${LLVM_VER} \
         llvm-${LLVM_VER}-dev libclang-${LLVM_VER}-dev clang-tidy-${LLVM_VER} \
@@ -64,14 +50,16 @@ RUN update-alternatives --install /usr/bin/clangd clangd $(which clangd-${LLVM_V
 RUN update-alternatives --install /usr/bin/clang clang $(which clang-${LLVM_VER}) 100
 RUN update-alternatives --install /usr/bin/clang++ clang++ $(which clang++-${LLVM_VER}) 100
 
+# temporarily use ubuntu version until repository allows noble
 # Add current cmake/ccmake, from Kitware
-ARG CMAKE_URL="https://apt.kitware.com/ubuntu/"
-ARG CMAKE_PKG=${VARIANT}
-RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null \
-        | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
-    apt-add-repository -y "deb ${CMAKE_URL} ${CMAKE_PKG} main" && \
-    apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
-    apt-get install -y --no-install-recommends cmake cmake-curses-gui
+#ARG CMAKE_URL="https://apt.kitware.com/ubuntu/"
+#ARG CMAKE_PKG=${VARIANT}
+#RUN wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null \
+#        | gpg --dearmor - | tee /etc/apt/trusted.gpg.d/kitware.gpg >/dev/null && \
+#    apt-add-repository -y "deb ${CMAKE_URL} ${CMAKE_PKG} main" && \
+RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y --no-install-recommends \
+        cmake cmake-curses-gui
 
 # Install editors
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
@@ -89,15 +77,9 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
         libcgal-dev libvtk9-dev libfftw3-dev patch
 
 # Install mold linker
-ENV MOLD /home/mold
-ENV MOLD_BUILD ${MOLD}/build
-ENV MOLD_SRC ${MOLD}/include-what-you-use
-RUN mkdir -p ${MOLD_BUILD} && \
-    git clone --depth 1 --branch v2.4.0 https://github.com/rui314/mold.git ${MOLD_SRC} && \
-    cd ${MOLD_BUILD} && \
-    cmake -DCMAKE_BUILD_TYPE=Release ${MOLD_SRC} && \
-    cmake --build . --parallel $(nproc) && \
-    cmake --build . --target install
+RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
+    apt-get install -y --no-install-recommends \
+        mold
 
 # Add ITK patch to fix compilation error
 COPY itk.patch /opt/itk.patch
