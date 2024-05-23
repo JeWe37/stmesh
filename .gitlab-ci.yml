@@ -13,9 +13,13 @@ services:
 
 default:
   cache:
-    key: build-folder
+    key: docker-build-folder
     paths:
-      - out
+      - ci/cache
+  before_script:
+    - docker buildx create --name=builder-container --driver=docker-container --use --bootstrap
+    - docker build --builder=builder-container --load --cache-from type=local,src=ci/cache --cache-to type=local,dest=ci/cache,compression=zstd -t stmesh-builder:latest --build-arg='VARIANT=noble' --build-arg='GCC_VER=14' --build-arg='LLVM_VER=18' .devcontainer
+    - docker buildx rm builder-container
 
 compile:
   stage: build
@@ -25,6 +29,9 @@ compile:
       do
         ./ci/run_docker_build.sh build $config
       done
+  artifacts:
+    paths:
+      - out
 
 test:
   stage: test
