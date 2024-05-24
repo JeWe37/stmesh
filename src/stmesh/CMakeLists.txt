@@ -24,6 +24,8 @@ set_source_files_properties(
 add_library(stmesh::stmesh ALIAS stmesh)
 
 target_link_libraries(stmesh PRIVATE 
+  ${ITK_LIBRARIES}
+  ${VTK_LIBRARIES}
   stmesh_options 
   stmesh_warnings)
 
@@ -33,9 +35,7 @@ target_link_libraries(stmesh PUBLIC
   Eigen
   spdlog::spdlog
   OpenMP::OpenMP_CXX
-  ${ITK_LIBRARIES}
-  ${Boost_INCLUDE_DIRS}
-  ${VTK_LIBRARIES})
+  ${Boost_INCLUDE_DIRS})
 
 target_include_directories(stmesh PUBLIC "${CMAKE_BINARY_DIR}/configured_files/include")
 

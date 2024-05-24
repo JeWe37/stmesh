@@ -6,9 +6,9 @@
 #include <cmath>
 #include <cstddef>
 #include <filesystem>
+#include <memory>
 #include <string_view>
 #include <tuple>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -16,9 +16,6 @@
 #include <CGAL/Polyhedron_3.h>
 #include <Eigen/Geometry>
 #include <spdlog/spdlog.h>
-#include <vtkNew.h>
-#include <vtkPoints.h>
-#include <vtkType.h>
 
 #include "boundary_region_manager.hpp" // IWYU pragma: keep
 #include "geometric_simplex.hpp"
@@ -28,10 +25,31 @@
 
 namespace stmesh {
 namespace detail {
+using vtkIdType = long long;
+
+class PolyhedraStorage;
+
 class PointStorage {
+  struct Impl;
+  std::unique_ptr<Impl> pimpl_;
+
+  friend void writeVTPFile(const std::filesystem::path &directory, const std::string_view &name_format,
+                           const std::vector<std::vector<PolyhedraStorage>> &polygons,
+                           const std::vector<PointStorage> &points, size_t block_pos, size_t n_positions,
+                           bool write_boundary_ids);
+  friend void writeVTUFile(const std::filesystem::path &directory, const std::string_view &name_format, FLOAT_T dt,
+                           const std::vector<std::vector<PolyhedraStorage>> &polyhedra,
+                           const std::vector<PointStorage> &points, const std::string_view &out_coord_format,
+                           stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time, size_t block_pos, size_t n_positions,
+                           FLOAT_T start_time);
+
 public:
-  std::unordered_map<Vector3F, vtkIdType, Vector3FHash> positions_;
-  vtkNew<vtkPoints> points_;
+  PointStorage();
+  ~PointStorage();
+  PointStorage(const PointStorage &) = delete;
+  PointStorage &operator=(const PointStorage &) = delete;
+  PointStorage(PointStorage &&) noexcept = default;
+  PointStorage &operator=(PointStorage &&) = default;
 
   [[nodiscard]] vtkIdType insert(const Vector3F &point) noexcept;
 };
@@ -72,8 +90,14 @@ computePolyhedra(const std::vector<Eigen::Hyperplane<FLOAT_T, 4>> &planes,
     auto min_idx = static_cast<size_t>(std::max(FLOAT_T(), std::ceil(((*min_time)[3] - start_time) / dt)));
     auto max_idx =
         std::min(n_positions, static_cast<size_t>(std::max(FLOAT_T(), std::ceil(((*max_time)[3] - start_time) / dt))));
-    for (size_t i = min_idx; i < max_idx; ++i)
-      polyhedra[i].emplace_back(simplex.planeCut(planes[i]), points[i], full_cell_id);
+    for (size_t i = min_idx; i < max_idx; ++i) {
+      auto polyhedron = simplex.planeCut(planes[i]);
+      if (polyhedron.is_empty()) {
+        spdlog::warn("Empty polyhedron ignored at time {}", start_time + static_cast<FLOAT_T>(i) * dt);
+        continue;
+      }
+      polyhedra[i].emplace_back(polyhedron, points[i], full_cell_id);
+    }
     full_cell_id++;
   }
   return {std::move(polyhedra), std::move(points)};
