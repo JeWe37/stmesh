@@ -269,7 +269,8 @@ struct Rule6 : Rule {
             if (k != i)
               vertices.col(j++) = full_cell_simplex.vertices().col(k);
           }
-          if (meshing_algorithm.voronoiDual(vertices, &dependent_neighbor_info).has_value()) {
+          detail::Triangulation::Facet facet(full_cell, static_cast<int>(i));
+          if (meshing_algorithm.voronoiDual(vertices, &dependent_neighbor_info, facet).has_value()) {
             if (!dry_run && dependent_neighbor_info.first != full_cell)
               std::apply(MeshingAlgorithm::addDependency, dependent_neighbor_info);
             meshing_algorithm.incrementRemaining();
@@ -284,8 +285,9 @@ struct Rule6 : Rule {
       auto sub_simplices = full_cell_simplex.template subSimplices<4>();
       if (auto it = std::ranges::find_if(
               sub_simplices,
-              [&](const auto &simplex) {
-                return meshing_algorithm.voronoiDual(simplex.vertices(), &dependent_neighbor_info).has_value();
+              [&, i = 4](const auto &simplex) mutable {
+                detail::Triangulation::Facet facet(full_cell, i--);
+                return meshing_algorithm.voronoiDual(simplex.vertices(), &dependent_neighbor_info, facet).has_value();
               });
           it != sub_simplices.end()) {
         if (!dry_run && dependent_neighbor_info.first != full_cell)
