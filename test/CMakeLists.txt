@@ -62,6 +62,9 @@ catch_discover_tests(
   tests
   TEST_PREFIX
   "unittests."
+  PROPERTIES
+  TIMEOUT
+  3600
   REPORTER
   XML
   OUTPUT_DIR
