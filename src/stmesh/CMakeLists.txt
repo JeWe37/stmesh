@@ -11,6 +11,8 @@ add_library(stmesh
   boundary_region_manager.cpp
   mixd_writer.cpp
   marching_hypercubes.cpp
+  voxel_complex.cpp
+  rle_bitset.cpp
   ${CMAKE_BINARY_DIR}/src/generator/table.cpp
 )
 
@@ -26,6 +28,7 @@ add_library(stmesh::stmesh ALIAS stmesh)
 target_link_libraries(stmesh PRIVATE 
   ${ITK_LIBRARIES}
   ${VTK_LIBRARIES}
+  mph::mph
   stmesh_options 
   stmesh_warnings)
 

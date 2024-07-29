@@ -101,4 +101,18 @@ function(stmesh_setup_dependencies)
   find_package(Boost 1.74.0 REQUIRED)
 
   find_package(OpenMP 4.5 REQUIRED)
+
+  CPMAddPackage(
+    Name mph
+    GITHUB_REPOSITORY boost-ext/mph
+    GIT_TAG v5.0.1
+  )
+  add_library(mph INTERFACE)
+  target_include_directories(mph SYSTEM INTERFACE ${mph_SOURCE_DIR})
+  if (CMAKE_CXX_COMPILER_ID MATCHES ".*GNU")
+    target_compile_options(mph INTERFACE -fconstexpr-ops-limit=10000000000 -mbmi2)
+  elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+    target_compile_options(mph INTERFACE -fconstexpr-steps=100000000 -mbmi2)
+  endif()
+  add_library(mph::mph ALIAS mph)
 endfunction()

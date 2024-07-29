@@ -1,6 +1,6 @@
 ---
-Hover:
-  ShowAKA: No
+CompileFlags:
+  Add: [-D_CLANGD=1]
 Diagnostics:
   MissingIncludes: Strict
   UnusedIncludes: Strict
