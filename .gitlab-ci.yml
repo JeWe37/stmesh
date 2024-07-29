@@ -6,7 +6,7 @@ variables:
   # This instructs Docker not to start over TLS.
   DOCKER_TLS_CERTDIR: ""
   GIT_SUBMODULE_STRATEGY: recursive
-  configurations: unixlike-gcc-debug unixlike-clang-debug unixlike-gcc-release unixlike-clang-release
+  configurations: unixlike-gcc-debug unixlike-clang-debug unixlike-gcc-release-sanitized unixlike-clang-release-sanitized
 
 services:
   - docker:dind

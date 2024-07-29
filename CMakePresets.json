@@ -41,12 +41,12 @@
             "cacheVariables": {
                 "ITK_DIR": "/opt/itk-gcc-build",
                 "stmesh_ENABLE_CLANG_TIDY": "OFF",
-                "stmesh_ENABLE_SANITIZER_UNDEFINED": "OFF",
                 "CMAKE_C_COMPILER": "gcc",
                 "CMAKE_CXX_COMPILER": "g++",
                 "CMAKE_BUILD_TYPE": "Debug",
                 "BUILD_TESTING": "ON",
-                "stmesh_ENABLE_USER_LINKER": "ON"
+                "stmesh_ENABLE_USER_LINKER": "ON",
+                "stmesh_ENABLE_IPO": "OFF"
             }
         },
         {
@@ -67,6 +67,21 @@
             }
         },
         {
+            "name": "unixlike-gcc-release-sanitized",
+            "displayName": "gcc Release sanitized",
+            "description": "Target Unix-like OS with the gcc compiler, release build type with sanitizers",
+            "inherits": "conf-unixlike-common",
+            "cacheVariables": {
+                "ITK_DIR": "/opt/itk-gcc-build",
+                "stmesh_ENABLE_CLANG_TIDY": "OFF",
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+                "BUILD_TESTING": "ON",
+                "stmesh_ENABLE_USER_LINKER": "ON"
+            }
+        },
+        {
             "name": "unixlike-clang-debug",
             "displayName": "clang Debug",
             "description": "Target Unix-like OS with the clang compiler, debug build type",
@@ -76,6 +91,20 @@
                 "CMAKE_C_COMPILER": "clang",
                 "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_BUILD_TYPE": "Debug",
+                "BUILD_TESTING": "ON",
+                "stmesh_ENABLE_USER_LINKER": "ON"
+            }
+        },
+        {
+            "name": "unixlike-clang-release-sanitized",
+            "displayName": "clang Release sanitized",
+            "description": "Target Unix-like OS with the clang compiler, release build type with sanitizers",
+            "inherits": "conf-unixlike-common",
+            "cacheVariables": {
+                "ITK_DIR": "/opt/itk-clang-build",
+                "CMAKE_C_COMPILER": "clang",
+                "CMAKE_CXX_COMPILER": "clang++",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "BUILD_TESTING": "ON",
                 "stmesh_ENABLE_USER_LINKER": "ON"
             }
@@ -93,7 +122,8 @@
                 "stmesh_ENABLE_SANITIZER_ADDRESS": "OFF",
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "BUILD_TESTING": "ON",
-                "stmesh_ENABLE_USER_LINKER": "ON"
+                "stmesh_ENABLE_USER_LINKER": "ON",
+                "stmesh_BUILD_FUZZ_TESTS": "OFF"
             }
         }
     ],
@@ -111,10 +141,22 @@
             "configurePreset": "unixlike-gcc-release"
         },
         {
+            "name": "unixlike-gcc-release-sanitized",
+            "displayName": "gcc Release sanitized",
+            "description": "Target Unix-like OS with the gcc compiler, release build type with sanitizers",
+            "configurePreset": "unixlike-gcc-release-sanitized"
+        },
+        {
             "name": "unixlike-clang-debug",
             "displayName": "clang Debug",
             "description": "Target Unix-like OS with the clang compiler, debug build type",
             "configurePreset": "unixlike-clang-debug"
+        },
+        {
+            "name": "unixlike-clang-release-sanitized",
+            "displayName": "clang Release sanitized",
+            "description": "Target Unix-like OS with the clang compiler, release build type with sanitizers",
+            "configurePreset": "unixlike-clang-release-sanitized"
         },
         {
             "name": "unixlike-clang-release",
@@ -151,11 +193,25 @@
             "configurePreset": "unixlike-gcc-release"
         },
         {
+            "name": "test-unixlike-gcc-release-sanitized",
+            "displayName": "Strict",
+            "description": "Enable output and stop on failure",
+            "inherits": "test-common",
+            "configurePreset": "unixlike-gcc-release-sanitized"
+        },
+        {
             "name": "test-unixlike-clang-debug",
             "displayName": "Strict",
             "description": "Enable output and stop on failure",
             "inherits": "test-common",
             "configurePreset": "unixlike-clang-debug"
+        },
+        {
+            "name": "test-unixlike-clang-release-sanitized",
+            "displayName": "Strict",
+            "description": "Enable output and stop on failure",
+            "inherits": "test-common",
+            "configurePreset": "unixlike-clang-release-sanitized"
         },
         {
             "name": "test-unixlike-clang-release",
