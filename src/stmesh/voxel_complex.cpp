@@ -7,41 +7,17 @@
 #include <functional>
 #include <iterator>
 #include <numeric>
-#include <span>
-#include <tuple>
 #include <type_traits>
 #include <utility>
 #include <vector>
 
 #include <mph>
 
+#include "stmesh/bitset.hpp"
 #include "stmesh/rle_bitset.hpp"
 #include "stmesh/utility.hpp"
 
 namespace stmesh {
-template <unsigned D> constexpr void VoxelComplex<D>::Face::setPos(unsigned i, int val) {
-  const unsigned shift = i << 1U;
-  pos &= static_cast<unsigned char>(~(3U << shift));
-  pos |= static_cast<unsigned char>(static_cast<unsigned>(val + 2) << shift);
-}
-
-template <unsigned D> [[nodiscard]] constexpr unsigned char VoxelComplex<D>::Face::getSet() const {
-  // NOLINTNEXTLINE(*-magic-numbers)
-  return pos & 0b01010101U;
-}
-
-template <unsigned D> [[nodiscard]] constexpr unsigned char VoxelComplex<D>::Face::getUnset() const {
-  // NOLINTNEXTLINE(*-magic-numbers)
-  return static_cast<unsigned char>(~pos) & (0b01010101U & kDimMask);
-}
-
-template <unsigned D> [[nodiscard]] constexpr int VoxelComplex<D>::Face::getPos(unsigned i) const {
-  return static_cast<int>((static_cast<unsigned>(pos) >> (i << 1U)) & 3U) - 2;
-}
-
-template <unsigned D> [[nodiscard]] constexpr unsigned char VoxelComplex<D>::Face::getDim() const {
-  return static_cast<unsigned char>(std::popcount(getUnset()));
-}
 
 template <unsigned D> template <typename T> [[nodiscard]] auto VoxelComplex<D>::getDims(const T &data) {
   static constexpr unsigned kDim = kGetBoolVectorDimV<T>;
@@ -73,7 +49,8 @@ template <unsigned D> VoxelComplex<D>::VoxelComplex(const BoolVectorDimType<D> &
 
 template <unsigned D>
 VoxelComplex<D>::VoxelComplex(const std::array<size_t, D> &dims)
-    : dims_(dims), table_(std::accumulate(dims.begin(), dims.end(), size_t{1}, std::multiplies<>())) {
+    : dims_(dims), table_(std::accumulate(dims.begin(), dims.end(), size_t{1}, std::multiplies<>())),
+      fixed_(table_.size()) {
   projection_[0] = 1;
   std::partial_sum(dims.begin(), dims.begin() + (D - 1), projection_.begin() + 1, std::multiplies<>());
 }
@@ -138,67 +115,6 @@ template <unsigned D>
   // the core of a (N-d)-face consists of all faces contained in it with result >= d
   // an (N-d)-face is essential if it has result > D - d
   return result;
-}
-
-// for each face, we store whether by setting the i-th coordinate to zero we reach an existing face
-// initially, this is always the case
-template <unsigned D>
-[[nodiscard]] consteval auto VoxelComplex<D>::initialFaces() -> std::array<unsigned char, Face::kMaxFaces> {
-  std::array<unsigned char, Face::kMaxFaces> result{};
-  iterateSubfacesRecursive({}, [&](const Face face) constexpr { result.at(face.pos) = face.getSet(); });
-  return result;
-}
-
-template <unsigned D>
-template <unsigned Dim>
-[[nodiscard]] constexpr auto VoxelComplex<D>::DimSubfaceStore<Dim>::asSpan(unsigned dim) const
-    -> std::span<const Face> {
-  if (dim == Dim)
-    return std::span(faces.begin() + dims.at(Dim), faces.end());
-  return std::span(faces.begin() + dims.at(dim), faces.begin() + dims.at(dim + 1));
-}
-
-template <unsigned D>
-template <unsigned Dim>
-[[nodiscard]] consteval auto VoxelComplex<D>::dimFaces(const Face face) -> DimSubfaceStore<Dim> {
-  std::array<std::vector<Face>, Dim + 1> result{};
-  iterateSubfacesRecursive(face, [&](const Face subface) constexpr { result.at(subface.getDim()).push_back(subface); });
-  // flatten into array and store indices of dims
-  std::array<size_t, Dim + 1> dims{};
-  std::array<Face, expN(Dim, 3)> faces{};
-  for (size_t i = 0; i < Dim + 1; ++i) {
-    std::ranges::copy(result.at(i), faces.begin() + dims.at(i));
-    if (i < Dim)
-      dims.at(i + 1) = result.at(i).size() + dims.at(i);
-  }
-  return {dims, faces};
-}
-
-template <unsigned D> template <int Dim> [[nodiscard]] consteval auto VoxelComplex<D>::allSortedDims() {
-  if constexpr (Dim == -1)
-    return std::tuple<>();
-  else {
-    // NOLINTNEXTLINE(bugprone-misplaced-widening-cast)
-    constexpr auto kSize = static_cast<std::size_t>((1U << static_cast<unsigned>(D - Dim)) * nChoosek(D, Dim));
-    std::array<std::pair<unsigned char, unsigned short>, kSize> result_map{};
-    std::array<DimSubfaceStore<static_cast<unsigned>(Dim)>, kSize> result_values{};
-    size_t i = 0;
-    iterateSubfacesRecursive(
-        {},
-        [&](const Face face) consteval {
-          result_map.at(i) = {face.pos, i};
-          result_values.at(i) = dimFaces<Dim>(face);
-          i++;
-        },
-        Dim, Dim);
-    return std::tuple_cat(allSortedDims<Dim - 1>(), std::make_tuple(std::pair{result_map, result_values}));
-  }
-}
-
-template <unsigned D>
-template <unsigned Dim>
-constexpr bool VoxelComplex<D>::essential(const Face face, const std::array<unsigned char, Face::kMaxFaces> &onto) {
-  return onto.at(face.pos) >= D - Dim;
 }
 
 template <unsigned D>
@@ -305,28 +221,27 @@ template <unsigned D> [[nodiscard]] bool VoxelComplex<D>::checkShortcut(size_t i
 }
 
 template <unsigned D>
-[[nodiscard]] constexpr bool VoxelComplex<D>::checkContainingVoxels(size_t idx, const Face face,
-                                                                    const RleBitset &removed, unsigned i) {
+[[nodiscard]] constexpr unsigned VoxelComplex<D>::checkContainingVoxels(size_t idx, const Face face,
+                                                                        const RleBitset &removed, unsigned i) {
   if (i == D) // leaf
-    return removed[idx];
-  // should see if we need to manually optimize face.getPos(i) == 0 case
-  // check the case of using this for the change and not using it
-  return checkContainingVoxels(static_cast<size_t>(static_cast<ptrdiff_t>(idx) +
-                                                   face.getPos(i) * static_cast<ptrdiff_t>(projection_.at(i))),
-                               face, removed, i + 1) &&
+    return static_cast<unsigned>(removed[idx]);
+  return (face.getPos(i) != 0
+              ? checkContainingVoxels(static_cast<size_t>(static_cast<ptrdiff_t>(idx) +
+                                                          face.getPos(i) * static_cast<ptrdiff_t>(projection_.at(i))),
+                                      face, removed, i + 1)
+              : 0) +
          checkContainingVoxels(idx, face, removed, i + 1);
 }
 
-template <unsigned D> void VoxelComplex<D>::thinningStep(size_t n_threads) {
+template <unsigned D> bool VoxelComplex<D>::thinningStep(size_t n_threads) {
   RleBitset new_table(table_.size());
   new_table.registerThreads(n_threads);
   table_.iterateSet(
       [&](size_t idx, size_t thread_id) {
-        if (checkShortcut(idx))
+        if (fixed_[idx] || checkShortcut(idx))
           new_table.set(idx, thread_id);
       },
-      [&](size_t /*unused*/) { /* just registered the threads, already at start */ },
-      [&](size_t thread_id) { new_table.finalizeThread(thread_id); }, n_threads);
+      {}, [&](size_t thread_id) { new_table.finalizeThread(thread_id); }, n_threads);
 
   // it might not look it, but this is actually a loop(at compile time, for kD=D..0)
   [&]<unsigned... Vals>(std::integer_sequence<unsigned, Vals...>) {
@@ -341,8 +256,7 @@ template <unsigned D> void VoxelComplex<D>::thinningStep(size_t n_threads) {
                 if (!new_table[idx])
                   removed.set(idx, thread_id);
               },
-              [&](size_t /*unused*/) { /* just registered the threads, already at start */ },
-              [&](size_t thread_id) { removed.finalizeThread(thread_id); }, n_threads);
+              {}, [&](size_t thread_id) { removed.finalizeThread(thread_id); }, n_threads);
           removed.unregisterThreads();
 
           removed.iterateSet(
@@ -350,9 +264,13 @@ template <unsigned D> void VoxelComplex<D>::thinningStep(size_t n_threads) {
                 // issue: we recompute the core a lot which might cost performance
                 auto onto = core(idx);
                 auto voxel_test = [&](const Face &face) {
-                  if (essential<kD>(face, onto) && checkContainingVoxels(idx, face, removed) &&
-                      !collapseFace<kD>(face, onto)) // essential in this dim + not collapsible == critical
+                  if (essential<kD>(face, onto) && checkContainingVoxels(idx, face, removed) == expN(Vals, 2) &&
+                      checkContainingVoxels(idx, face, new_table) == 0 &&
+                      !collapseFace<kD>(face, onto)) { // essential in this dim + not collapsible == critical
+                    // immediately set bitset value
+                    new_table.Bitset::set(idx);
                     new_table.set(idx, thread_id);
+                  }
                 };
                 iterateSubfaces<D, decltype(voxel_test), kD>({}, voxel_test);
               },
@@ -362,8 +280,27 @@ template <unsigned D> void VoxelComplex<D>::thinningStep(size_t n_threads) {
         ...);
   }(std::make_integer_sequence<unsigned, D + 1>());
   new_table.unregisterThreads();
+
+  const bool result = new_table != table_;
   table_ = std::move(new_table);
+  return result;
 }
+
+template <unsigned D> void VoxelComplex<D>::fixOneNeighbor(size_t n_threads) {
+  table_.iterateSet(
+      [&](size_t idx, size_t /*unused*/) {
+        size_t neighbors = 0;
+        iterateSubfaces<D>({}, [&](const Face face, auto /*unused*/) {
+          if (table_[offsetByFace(idx, face)])
+            neighbors++;
+        });
+        if (neighbors == 1UL)
+          fixed_.set(idx);
+      },
+      {}, {}, n_threads);
+}
+
+template <unsigned D> [[nodiscard]] const Bitset &VoxelComplex<D>::fixed() const { return fixed_; }
 
 template class VoxelComplex<2U>;
 template class VoxelComplex<3U>;
