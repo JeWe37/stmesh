@@ -1,7 +1,6 @@
 #ifndef STMESH_RLE_BITSET_HPP
 #define STMESH_RLE_BITSET_HPP
 #include <algorithm>
-#include <atomic>
 #include <bits/ranges_algo.h>
 #include <concepts>
 #include <cstddef>
@@ -10,15 +9,20 @@
 #include <thread>
 #include <vector>
 
+#include "bitset.hpp"
+
 namespace stmesh {
-class RleBitset {
+class RleBitset : public Bitset {
+public:
   struct Run {
     size_t start;
     size_t length;
+    [[nodiscard]] bool operator<=>(const Run &other) const = default;
   };
 
   using hint_type = std::forward_list<Run>::iterator;
 
+private:
   struct CurrentUpdate {
     hint_type hint;
     std::forward_list<Run> thread_runs;
@@ -40,13 +44,16 @@ public:
 
   explicit RleBitset(const std::vector<bool> &data);
 
+  // cppcheck-suppress duplInheritedMember
   void setFrom(const std::vector<bool> &data);
 
-  template <std::invocable<size_t, size_t> F, std::invocable<size_t> E, std::invocable<size_t> B>
-  constexpr void iterateSet(const F &func, const B &initialize, const E &finalize, size_t n_threads) const {
+  template <std::invocable<size_t, size_t> F, std::invocable<size_t> E = decltype([](size_t /*unused*/) {}),
+            std::invocable<size_t> B = decltype([](size_t /*unused*/) {})>
+  constexpr void iterateSet(const F &func, const B &initialize = {}, const E &finalize = {},
+                            size_t n_threads = 1) const {
     std::vector<std::jthread> threads;
-    for (size_t i = 0; i < n_threads; ++i)
-      threads.emplace_back([&, i] {
+    for (size_t i = 0; i < n_threads; ++i) {
+      auto task = [&, i] {
         const size_t start = size_ / n_threads * i;
         auto it = std::ranges::lower_bound(runs_, start, {}, [](const Run &run) { return run.start + run.length; });
         initialize(i);
@@ -60,10 +67,13 @@ public:
           }
         }
         finalize(i);
-      });
+      };
+      if (n_threads == 1)
+        task();
+      else
+        threads.emplace_back(task);
+    }
   }
-
-  [[nodiscard]] bool operator[](size_t idx) const;
 
   void commit(size_t thread_id);
 
@@ -79,12 +89,10 @@ public:
 
   hint_type setRange(size_t idx_start, size_t idx_end, hint_type hint, std::forward_list<Run> &runs);
 
-  [[nodiscard]] size_t size() const noexcept;
+  [[nodiscard]] bool operator==(const RleBitset &other) const;
 
 private:
   std::vector<CurrentUpdate> current_updates_;
-  size_t size_;
-  std::vector<std::atomic_uint64_t> data_;
   std::vector<Run> runs_;
 };
 } // namespace stmesh

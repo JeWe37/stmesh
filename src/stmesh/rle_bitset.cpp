@@ -1,39 +1,32 @@
 #include "stmesh/rle_bitset.hpp"
 
 #include <algorithm>
-#include <atomic>
 #include <cstddef>
-#include <cstdint>
 #include <forward_list>
 #include <iterator>
 #include <stdexcept>
 #include <utility>
 #include <vector>
 
+#include "stmesh/bitset.hpp"
+
 namespace stmesh {
 static constexpr size_t k64Mask = 0x3F;
 static constexpr size_t k64Bits = 6;
 
-RleBitset::RleBitset() : size_(0) {}
+RleBitset::RleBitset() = default;
 
 // cppcheck-suppress missingMemberCopy
-RleBitset::RleBitset(const RleBitset &other) : size_(other.size_), data_(other.data_.size()), runs_(other.runs_) {
-  for (size_t i = 0; i < other.data_.size(); ++i)
-    data_[i] = other.data_[i].load();
-}
+RleBitset::RleBitset(const RleBitset &other) : Bitset(other), runs_(other.runs_) {}
 
 RleBitset::RleBitset(RleBitset &&other) noexcept
-    : current_updates_(std::move(other.current_updates_)), size_(other.size_), data_(std::move(other.data_)),
-      runs_(std::move(other.runs_)) {}
+    : current_updates_(std::move(other.current_updates_)), runs_(std::move(other.runs_)) {}
 
 RleBitset &RleBitset::operator=(const RleBitset &other) {
   if (this == &other)
     return *this;
+  Bitset::operator=(other);
   current_updates_ = std::vector<CurrentUpdate>();
-  size_ = other.size_;
-  data_ = std::vector<std::atomic_uint64_t>(other.data_.size());
-  for (size_t i = 0; i < other.data_.size(); ++i)
-    data_[i] = other.data_[i].load();
   runs_ = other.runs_;
   return *this;
 }
@@ -48,10 +41,11 @@ RleBitset &RleBitset::operator=(RleBitset &&other) noexcept {
 
 RleBitset::~RleBitset() = default;
 
-RleBitset::RleBitset(size_t size) : size_(size), data_((size >> k64Bits) + 1UL) { std::ranges::fill(data_, 0UL); }
+RleBitset::RleBitset(size_t size) : Bitset(size) { std::ranges::fill(data_, 0UL); }
 
 RleBitset::RleBitset(const std::vector<bool> &data) : RleBitset(data.size()) { setFrom(data); }
 
+// cppcheck-suppress duplInheritedMember
 void RleBitset::setFrom(const std::vector<bool> &data) {
   size_t start = 0;
   size_t length = 0;
@@ -80,12 +74,6 @@ template <std::forward_iterator T> [[nodiscard]] T RleBitset::locateRun(T hint, 
     it_old = it;
   }
   return it_old;
-}
-
-[[nodiscard]] bool RleBitset::operator[](size_t idx) const {
-  if (idx >= size_)
-    throw std::out_of_range("Index out of range");
-  return static_cast<bool>(data_[idx >> k64Bits] & (1UL << (idx & k64Mask)));
 }
 
 void RleBitset::commit(size_t thread_id) {
@@ -124,11 +112,10 @@ void RleBitset::set(size_t idx, size_t thread_id) {
   CurrentUpdate &current_update = current_updates_[thread_id];
   if (idx >= size_)
     throw std::out_of_range("Index out of range");
-  // checkWaitPos(idx, thread_id);
   if (current_update.length == 0 || current_update.start + current_update.length != idx) {
     if (current_update.length != 0)
       commit(thread_id);
-    current_update.hint = locateRun(current_update.hint, idx); // hint already locked
+    current_update.hint = locateRun(current_update.hint, idx);
     current_update.start = idx;
     current_update.length = 1;
   } else
@@ -141,21 +128,7 @@ auto RleBitset::setRange(size_t idx_start, size_t idx_end, hint_type hint, std::
   if (idx_start > idx_end)
     std::swap(idx_start, idx_end);
 
-  // Set the bits in the underlying data structure
-  const size_t start_word = idx_start >> 6ULL;
-  const size_t end_word = idx_end >> 6ULL;
-  const uint64_t start_mask = ~0ULL << (idx_start & 63ULL);
-  const uint64_t end_mask = ~0ULL >> (63ULL - (idx_end & 63ULL));
-
-  if (start_word == end_word) {
-    const uint64_t mask = start_mask & end_mask;
-    data_[start_word] |= mask;
-  } else {
-    data_[start_word] |= start_mask;
-    for (size_t i = start_word + 1; i < end_word; ++i)
-      data_[i] = ~0ULL;
-    data_[end_word] |= end_mask;
-  }
+  Bitset::setRange(idx_start, idx_end);
 
   // Update the run-length encoding
   auto it = locateRun(hint, idx_start);
@@ -189,5 +162,5 @@ auto RleBitset::setRange(size_t idx_start, size_t idx_end, hint_type hint, std::
   return it;
 }
 
-[[nodiscard]] size_t RleBitset::size() const noexcept { return size_; }
+[[nodiscard]] bool RleBitset::operator==(const RleBitset &other) const { return runs_ == other.runs_; }
 } // namespace stmesh

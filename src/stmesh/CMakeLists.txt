@@ -13,6 +13,7 @@ add_library(stmesh
   marching_hypercubes.cpp
   voxel_complex.cpp
   rle_bitset.cpp
+  bitset.cpp
   ${CMAKE_BINARY_DIR}/src/generator/table.cpp
 )
 
