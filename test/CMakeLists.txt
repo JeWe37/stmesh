@@ -38,6 +38,9 @@ add_executable(tests
   surface_adapter_tests.cpp
   triangulation_tests.cpp
   utility_tests.cpp
+  bitset_tests.cpp
+  rle_bitset_tests.cpp
+  voxel_complex_tests.cpp
 )
 target_link_libraries(
   tests
