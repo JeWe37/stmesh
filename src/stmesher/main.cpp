@@ -6,6 +6,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <stmesh/lfs_schemes.hpp>
 #include <string>
 
 #include <CLI/App.hpp>
@@ -30,7 +31,7 @@ int main(int argc, const char **argv) {
     CLI::App app{fmt::format("{} version {}", stmesh::cmake::project_name, stmesh::cmake::project_version)};
 
     // NOLINTBEGIN(misc-const-correctness)
-    bool show_version = false;
+    bool show_version{};
     app.add_flag("--version", show_version, "Show version information");
 
     std::optional<std::filesystem::path> stats_output_file;
@@ -98,6 +99,11 @@ int main(int argc, const char **argv) {
     std::optional<std::string> edt_file;
     CLI::Option *edt_file_option = app.add_option("--edt-file", edt_file, "Read an EDT file");
 
+    bool constant_lfs{};
+    app.add_flag("!--no-constant-lfs", constant_lfs, "Use a constant local feature size, default true")
+        ->default_val(true)
+        ->needs(edt_file_option);
+
     stmesh::HypercubeBoundaryManager hypercube_boundary_manager;
     // NOLINTNEXTLINE(*-magic-numbers)
     CLI::Option *hypercube_option = app.add_option_function<std::array<stmesh::FLOAT_T, 8>>(
@@ -133,11 +139,11 @@ int main(int argc, const char **argv) {
       return EXIT_SUCCESS;
     }
 
-    const auto mesh = [&](const auto &surface_adapter,
-                          const std::shared_ptr<stmesh::EDTReader<4>> &edt_reader = nullptr) {
+    const auto mesh = [&]<bool LFS = false>(const auto &surface_adapter, auto &&lfs_scheme,
+                                            const std::shared_ptr<stmesh::EDTReader<4, LFS>> &edt_reader = nullptr) {
       // NOLINTNEXTLINE(misc-const-correctness)
-      stmesh::MeshingAlgorithm meshing_algorithm(surface_adapter, rho_bar, tau_bar, zeta, b, delta, max_radius, seed,
-                                                 disable_rule6);
+      stmesh::MeshingAlgorithm meshing_algorithm(surface_adapter, rho_bar, tau_bar, zeta, b, lfs_scheme, max_radius,
+                                                 seed, disable_rule6);
 
       spdlog::info("Setup complete. Starting meshing...");
 
@@ -179,17 +185,25 @@ int main(int argc, const char **argv) {
 
     if (edt_file) {
       spdlog::info("Reading EDT file {}...", *edt_file);
-      const auto edt_reader = std::make_shared<stmesh::EDTReader<4>>(*edt_file);
-      const stmesh::EDTSurfaceAdapter adapter(edt_reader);
-      spdlog::info("EDT file read successfully! Bounding box: min=({}), max=({})",
-                   edt_reader->boundingBox().min().transpose(), edt_reader->boundingBox().max().transpose());
-      mesh(adapter, edt_reader);
+      if (constant_lfs) {
+        const auto edt_reader = std::make_shared<stmesh::EDTReader<4>>(*edt_file);
+        const stmesh::EDTSurfaceAdapter adapter(edt_reader);
+        spdlog::info("EDT file read successfully! Bounding box: min=({}), max=({})",
+                     edt_reader->boundingBox().min().transpose(), edt_reader->boundingBox().max().transpose());
+        mesh(adapter, stmesh::lfs_schemes::Constant(delta), edt_reader);
+      } else {
+        const auto edt_reader = std::make_shared<stmesh::EDTReader<4, true>>(*edt_file);
+        const stmesh::EDTSurfaceAdapter adapter(edt_reader);
+        spdlog::info("EDT file read successfully! Bounding box: min=({}), max=({})",
+                     edt_reader->boundingBox().min().transpose(), edt_reader->boundingBox().max().transpose());
+        mesh(adapter, stmesh::lfs_schemes::BinaryImageApproximation(delta, edt_reader), edt_reader);
+      }
     } else {
       const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
           stmesh::FLOAT_T(30.0),
           stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(30.0)});
 
-      mesh(sdf_surface_adapter);
+      mesh(sdf_surface_adapter, stmesh::lfs_schemes::Constant(delta));
     }
     spdlog::info("Done!");
     return EXIT_SUCCESS;

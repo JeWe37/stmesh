@@ -6,6 +6,7 @@
 #include "boundary_region_manager.hpp"
 #include "edt.hpp"
 #include "geometric_simplex.hpp"
+#include "lfs_schemes.hpp"
 #include "meshing_algorithm.hpp"
 #include "mixd_writer.hpp"
 #include "rle_bitset.hpp"

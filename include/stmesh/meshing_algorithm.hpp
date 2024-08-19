@@ -25,6 +25,7 @@
 #include <spdlog/spdlog.h>
 
 #include "geometric_simplex.hpp"
+#include "lfs_schemes.hpp" // IWYU pragma: keep
 #include "meshing_cell.hpp"
 #include "sdf.hpp"
 #include "surface_adapters.hpp" // IWYU pragma: keep
@@ -35,7 +36,7 @@ namespace stmesh {
 /// The central class for the meshing algorithm
 /**
  * The central class for the meshing algorithm. The meshing algorithm is a mesh generation algorithm that generates a
- * mesh of the interior of a surface. The meshing algorithm is based on the paper "4D Space-Time Delaunay Meshing for
+ * mesh of the interior of a surface. The meshing algorithm istbased on the paper "4D Space-Time Delaunay Meshing for
  * Medical Images" by Panagiotis Foteinos and Nikos Chrisochoides. The meshing algorithm is based on the concept of
  * rules. The meshing algorithm is a template class, with the surface adapter and random number generator as template
  * parameters. The surface adapter is a class that provides the signed distance, normal, and bounding box of a surface.
@@ -43,11 +44,15 @@ namespace stmesh {
  * Fundamentally the algorithms goal is the production of a mesh that conforms well to the surface and contains only
  * good pentatopes, by some definition of good.
  * This is useful for space-time finite element algorithms, such as offered by XNS.
+ * It is also possible to specify the local feature size(LFS) approximation scheme to use.
  *
  * @tparam Surface The surface adapter
+ * @tparam LFS The LFS approximation scheme
  * @tparam Random The random number generator
  */
-template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = std::mt19937_64> class MeshingAlgorithm {
+template <SurfaceAdapter4 Surface, lfs_schemes::LFSScheme LFS,
+          std::uniform_random_bit_generator Random = std::mt19937_64>
+class MeshingAlgorithm {
 
   // may need map from full cell to fibonacci heap handle
   // need to check if those are ever invalidated
@@ -55,6 +60,7 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
 
   detail::Triangulation triangulation_;
   Surface surface_;
+  LFS lfs_;
   Random gen_;
 
   using Point = detail::Triangulation::BGPoint;
@@ -66,7 +72,7 @@ template <SurfaceAdapter4 Surface, std::uniform_random_bit_generator Random = st
   Tree tree_removal_;
   Tree tree_insertion_;
 
-  FLOAT_T rho_bar_, tau_bar_, zeta_, b_, delta_, max_radius_;
+  FLOAT_T rho_bar_, tau_bar_, zeta_, b_, max_radius_;
 
   size_t remaining_{};
   bool disable_rule6_;
@@ -223,16 +229,17 @@ public:
    * @param tau_bar The minimum quality of a pentatope
    * @param zeta The factor by which the picking region is scaled
    * @param b The maximum radius of small simplices
-   * @param delta The maximum size of simplices
+   * @param lfs The LFS approximation scheme
    * @param max_radius The maximum radius of a full cell
    * @param seed The seed for the random number generator
    * @param disable_rule6 Whether to disable rule 6
    */
-  MeshingAlgorithm(const Surface &surface, FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T zeta, FLOAT_T b, FLOAT_T delta,
+  MeshingAlgorithm(const Surface &surface, FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T zeta, FLOAT_T b, LFS lfs,
                    FLOAT_T max_radius, std::optional<typename Random::result_type> seed = std::nullopt,
                    bool disable_rule6 = false)
-      : triangulation_(calculateBoundingBox(surface, delta)), surface_(surface), gen_(), rho_bar_(rho_bar),
-        tau_bar_(tau_bar), zeta_(zeta), b_(b), delta_(delta), max_radius_(max_radius), disable_rule6_(disable_rule6) {
+      : triangulation_(calculateBoundingBox(surface, lfs.max())), surface_(surface), lfs_(lfs), gen_(),
+        rho_bar_(rho_bar), tau_bar_(tau_bar), zeta_(zeta), b_(b), max_radius_(max_radius),
+        disable_rule6_(disable_rule6) {
     if (seed)
       gen_.seed(*seed);
     for (auto &full_cell : triangulation_) {
@@ -249,13 +256,13 @@ public:
    * delta.
    *
    * @param surface The surface
-   * @param delta The minimum distance from the surface
+   * @param max_delta The minimum distance from the surface
    * @return The bounding box that is far enough from the surface
    */
-  [[nodiscard]] static Eigen::AlignedBox<FLOAT_T, 4> calculateBoundingBox(const Surface &surface, FLOAT_T delta) {
+  [[nodiscard]] static Eigen::AlignedBox<FLOAT_T, 4> calculateBoundingBox(const Surface &surface, FLOAT_T max_delta) {
     Eigen::AlignedBox<FLOAT_T, 4> bounding_box = surface.boundingBox();
-    bounding_box.min().array() -= 2 * delta;
-    bounding_box.max().array() += 2 * delta;
+    bounding_box.min().array() -= 2 * max_delta;
+    bounding_box.max().array() += 2 * max_delta;
     return bounding_box;
   }
 
@@ -473,11 +480,11 @@ public:
   /// The delta of the surface
   /**
    * The delta of the surface. The delta of the surface is typically supposed to be the local feature size of the
-   * surface, however as calculating the medial axis is difficult, it is instead set to a constant.
+   * surface.
    *
    * @return The delta of the surface
    */
-  [[nodiscard]] FLOAT_T deltaSurface(const Vector4F & /*unused*/) const noexcept { return delta_; }
+  [[nodiscard]] FLOAT_T deltaSurface(const Vector4F &pos) const noexcept { return lfs_(pos); }
 
   /// Insert a point into the triangulation
   /**

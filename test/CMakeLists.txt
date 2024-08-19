@@ -37,6 +37,7 @@ add_executable(tests
   sdf_tests.cpp
   surface_adapter_tests.cpp
   triangulation_tests.cpp
+  lfs_schemes_tests.cpp
   utility_tests.cpp
   bitset_tests.cpp
   rle_bitset_tests.cpp

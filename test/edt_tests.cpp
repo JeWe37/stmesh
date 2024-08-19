@@ -7,7 +7,7 @@
 #include "stmesh/utility.hpp"
 
 TEST_CASE("Test euclidean distance transform with sphere", "[sphere_edt][edt]") {
-  const stmesh::EDTReader<4> reader("data/sphere.mha");
+  const stmesh::EDTReader<4, true> reader("data/sphere.mha");
   REQUIRE(reader.boundingBox().min() == stmesh::Vector4F::Constant(stmesh::FLOAT_T(2.5)));
   REQUIRE(reader.boundingBox().max() == stmesh::Vector4F::Constant(stmesh::FLOAT_T(42.5)));
   REQUIRE(reader.signedDistanceAt(
@@ -31,4 +31,12 @@ TEST_CASE("Test euclidean distance transform with sphere", "[sphere_edt][edt]") 
                                      stmesh::FLOAT_T(22.0)}) == size_t{1});
   REQUIRE(reader.findBoundaryRegion({stmesh::FLOAT_T(32.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0),
                                      stmesh::FLOAT_T(22.0)}) == size_t{2});
+
+  const stmesh::FLOAT_T radius = reader.boundingBox().sizes().mean() / 2.0 - 1.0;
+  for (int i = 0; i < 100; ++i) {
+    const stmesh::Vector4F random_in_bounding_box =
+        stmesh::Vector4F::Random().cwiseProduct(reader.boundingBox().sizes()) + reader.boundingBox().min();
+    const stmesh::Vector4F random_on_sphere = reader.closestAt(random_in_bounding_box);
+    REQUIRE(std::abs(reader.distanceToThinnedAt(random_on_sphere) - radius) <= stmesh::FLOAT_T(2.0));
+  }
 }

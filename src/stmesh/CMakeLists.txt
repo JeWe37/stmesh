@@ -14,6 +14,7 @@ add_library(stmesh
   voxel_complex.cpp
   rle_bitset.cpp
   bitset.cpp
+  lfs_schemes.cpp
   ${CMAKE_BINARY_DIR}/src/generator/table.cpp
 )
 

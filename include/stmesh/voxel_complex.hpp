@@ -144,6 +144,9 @@ private:
   template <typename T> static void flatten(const T &data, std::vector<bool> &result);
 
 public:
+  /// Default constructor for empty voxel complex
+  VoxelComplex() : VoxelComplex(std::array<size_t, D>{}) {}
+
   /// Constructs a D-dimensional voxel complex
   /**
    * The voxel complex is initialized with the given data.
@@ -431,6 +434,14 @@ public:
    * @return The set of fixed voxels
    */
   [[nodiscard]] const Bitset &fixed() const;
+
+  /// Gets the table
+  /**
+   * Gets the table. The table is used for the thinning.
+   *
+   * @return The table
+   */
+  [[nodiscard]] const RleBitset &table() const;
 
 private:
   std::array<size_t, D> projection_;

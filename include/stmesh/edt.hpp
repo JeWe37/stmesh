@@ -38,10 +38,12 @@ concept EuclideanDistanceTransform = requires(const T t, VectorF<D> vec, std::ar
  * The file may be in any format, as long as it is supported by ITK. ITK is then used to compute the Euclidean distance
  * transform from the binary file. Outside values must be set to 0, the inside positive.
  * The centers of the voxels lie at integer coordinates + 0.5, so the bounding box lies at integer coordinates.
+ * The class can also compute the EDT of the thinned image, thereby approximating the local feature size.
  *
  * @tparam D The dimension of the space
+ * @tparam LFS Whether to calculate the local feature size via thinning
  */
-template <unsigned D> class EDTReader {
+template <unsigned D, bool LFS = false> class EDTReader {
   struct Impl;
   std::unique_ptr<Impl> pimpl_;
 
@@ -54,8 +56,9 @@ public:
    * positive.
    *
    * @param filename The filename of the Euclidean distance transform
+   * @param n_threads The number of threads to use for thinning the image
    */
-  explicit EDTReader(const std::string &filename);
+  explicit EDTReader(const std::string &filename, size_t n_threads = 1);
 
   // make pImpl unique_ptr deletable with incomplete type
   ~EDTReader();
@@ -115,6 +118,18 @@ public:
    */
   [[nodiscard]] VectorF<D> closestAt(const VectorF<D> &point) const noexcept;
 
+  /// Get the distance to the thinned structure at a point
+  /**
+   * Get the distance to the thinned structure at a point. This distance is an approximation of the local feature size
+   * if computed on the boundary.
+   * Only available if LFS is true.
+   *
+   * @param point The point to get the distance to the thinned structure at
+   * @return The distance to the thinned structure at the point
+   */
+  [[nodiscard]] FLOAT_T distanceToThinnedAt(const VectorF<D> &point) const noexcept
+  requires LFS;
+
   /// Get the bounding box of the Euclidean distance transform
   /**
    * Get the bounding box of the Euclidean distance transform. The bounding box is the bounding box of the positive
@@ -125,6 +140,6 @@ public:
   [[nodiscard]] Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> boundingBox() const noexcept;
 };
 
-using EDTReader4 = EDTReader<4>;
+template <bool LFS> using EDTReader4 = EDTReader<4, LFS>;
 } // namespace stmesh
 #endif

@@ -302,6 +302,8 @@ template <unsigned D> void VoxelComplex<D>::fixOneNeighbor(size_t n_threads) {
 
 template <unsigned D> [[nodiscard]] const Bitset &VoxelComplex<D>::fixed() const { return fixed_; }
 
+template <unsigned D> [[nodiscard]] const RleBitset &VoxelComplex<D>::table() const { return table_; }
+
 template class VoxelComplex<2U>;
 template class VoxelComplex<3U>;
 template class VoxelComplex<4U>;

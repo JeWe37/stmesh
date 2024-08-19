@@ -5,8 +5,10 @@
 #include <cstddef>
 #include <functional>
 #include <iterator>
+#include <numeric>
 #include <span>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <Eigen/Core>
@@ -17,6 +19,7 @@
 #include <itkDanielssonDistanceMapImageFilter.h>
 #include <itkImage.h>
 #include <itkImageFileReader.h>
+#include <itkImportImageFilter.h>
 #ifndef __clang_analyzer__
 #include <itkImageRegionConstIterator.h>
 #endif
@@ -27,10 +30,11 @@
 #include <itkSubtractImageFilter.h>
 
 #include "stmesh/utility.hpp"
+#include "stmesh/voxel_complex.hpp"
 
 namespace stmesh {
 
-template <unsigned D> struct EDTReader<D>::Impl {
+template <unsigned D, bool LFS> struct EDTReader<D, LFS>::Impl {
   using Index = itk::Index<D>;
 
   using Image = itk::Image<unsigned char, D>;
@@ -39,17 +43,23 @@ template <unsigned D> struct EDTReader<D>::Impl {
 
   using BinaryThresholdImageFilter = itk::BinaryThresholdImageFilter<Image, Image>;
   using DanielssonDistanceMapImageFilter = itk::DanielssonDistanceMapImageFilter<Image, FloatImage>;
+  using ImportFilter = itk::ImportImageFilter<unsigned char, D>;
   using AddImageFilter = itk::AddImageFilter<OffsetImage>;
   using SubtractImageFilter = itk::SubtractImageFilter<FloatImage>;
 
   typename BinaryThresholdImageFilter::Pointer threshold_image_filter;
+  typename DanielssonDistanceMapImageFilter::Pointer thinned_distance_map_image_filter;
   typename DanielssonDistanceMapImageFilter::Pointer distance_map_image_filter;
   typename DanielssonDistanceMapImageFilter::Pointer not_distance_map_image_filter;
+  typename ImportFilter::Pointer thinned_import_filter;
   typename AddImageFilter::Pointer add_image_filter;
   typename SubtractImageFilter::Pointer subtract_image_filter;
 
+  VoxelComplex<D> voxel_complex;
+
   Image::Pointer read_image;
   FloatImage::Pointer distance_map;
+  FloatImage::Pointer thinned_distance_map;
   OffsetImage::Pointer vector_map;
   Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> bounding_box;
 
@@ -85,12 +95,31 @@ template <unsigned D> struct EDTReader<D>::Impl {
     return {indexToVector(min) - 1.0 * spacing(), indexToVector(max) + 1.0 * spacing()};
   }
 
-  explicit Impl(const std::string &filename)
+  template <size_t I = 0> auto vectorFromImage(const Image *image, Index index = {}) const {
+    if constexpr (I == D)
+      return static_cast<bool>(image->GetPixel(index));
+    else {
+      std::vector<decltype(vectorFromImage<I + 1>(image, index))> result;
+      result.reserve(image->GetLargestPossibleRegion().GetSize()[I]);
+      for (typename Index::value_type i = 0;
+           i < static_cast<Index::value_type>(image->GetLargestPossibleRegion().GetSize()[I]); ++i) {
+        index[I] = i;
+        result.push_back(vectorFromImage<I + 1>(image, index));
+      }
+      return result;
+    }
+  }
+
+  explicit Impl(const std::string &filename, size_t n_threads = 1)
       : threshold_image_filter(BinaryThresholdImageFilter::New()),
+        thinned_distance_map_image_filter(DanielssonDistanceMapImageFilter::New()),
         distance_map_image_filter(DanielssonDistanceMapImageFilter::New()),
-        not_distance_map_image_filter(DanielssonDistanceMapImageFilter::New()), add_image_filter(AddImageFilter::New()),
+        not_distance_map_image_filter(DanielssonDistanceMapImageFilter::New()),
+        thinned_import_filter(ImportFilter::New()), add_image_filter(AddImageFilter::New()),
         subtract_image_filter(SubtractImageFilter::New()), read_image(itk::ReadImage<Image>(filename)),
-        distance_map(subtract_image_filter->GetOutput()), vector_map(add_image_filter->GetOutput()) {
+        distance_map(subtract_image_filter->GetOutput()),
+        thinned_distance_map(thinned_distance_map_image_filter->GetOutput()),
+        vector_map(add_image_filter->GetOutput()) {
     const stmesh::Vector4F origin = spacing() * 0.5;
     read_image->SetOrigin(origin.data());
 
@@ -99,6 +128,18 @@ template <unsigned D> struct EDTReader<D>::Impl {
     threshold_image_filter->SetOutsideValue(1);
     threshold_image_filter->SetInput(read_image);
     threshold_image_filter->ReleaseDataFlagOn();
+
+    // NOLINTNEXTLINE(misc-const-correctness)
+    std::thread th;
+    if constexpr (LFS) {
+      voxel_complex = VoxelComplex<D>(vectorFromImage(read_image));
+
+      th = std::thread([&]() {
+        do {
+          voxel_complex.fixOneNeighbor(n_threads);
+        } while (voxel_complex.thinningStep(n_threads));
+      });
+    }
 
     distance_map_image_filter->SetInput(read_image);
     distance_map_image_filter->ReleaseDataFlagOn();
@@ -118,6 +159,26 @@ template <unsigned D> struct EDTReader<D>::Impl {
 
     // NOLINTNEXTLINE(cppcoreguidelines-prefer-member-initializer)
     bounding_box = boundingBoxFromImage(threshold_image_filter->GetOutput());
+
+    if constexpr (LFS) {
+      th.join();
+
+      const size_t total_size = read_image->GetLargestPossibleRegion().GetNumberOfPixels();
+      // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+      auto *thinned_data = new unsigned char[total_size]{};
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+      voxel_complex.table().iterateSet([&](size_t idx, size_t /*unused*/) { thinned_data[idx] = 1; }, {}, {},
+                                       n_threads);
+
+      thinned_import_filter->SetOrigin(read_image->GetOrigin());
+      thinned_import_filter->SetSpacing(read_image->GetSpacing());
+      thinned_import_filter->SetRegion(read_image->GetLargestPossibleRegion());
+      thinned_import_filter->SetImportPointer(thinned_data, total_size, true);
+
+      thinned_distance_map_image_filter->SetInput(thinned_import_filter->GetOutput());
+      thinned_distance_map_image_filter->ReleaseDataFlagOn();
+      thinned_distance_map_image_filter->Update();
+    }
   }
 
   [[nodiscard]] Index vectorToIndex(const Vector4F &vec) const noexcept {
@@ -169,19 +230,20 @@ template <unsigned D> struct EDTReader<D>::Impl {
   }
 };
 
-template <unsigned D> EDTReader<D>::EDTReader(const std::string &filename) : pimpl_(new Impl(filename)) {}
+template <unsigned D, bool LFS>
+EDTReader<D, LFS>::EDTReader(const std::string &filename, size_t n_threads) : pimpl_(new Impl(filename, n_threads)) {}
 
-template <unsigned D> EDTReader<D>::~EDTReader() = default;
+template <unsigned D, bool LFS> EDTReader<D, LFS>::~EDTReader() = default;
 
-template <unsigned D> Vector4F EDTReader<D>::spacing() const noexcept { return pimpl_->spacing(); }
+template <unsigned D, bool LFS> Vector4F EDTReader<D, LFS>::spacing() const noexcept { return pimpl_->spacing(); }
 
-template <unsigned D> FLOAT_T EDTReader<D>::signedDistanceAt(const VectorF<D> &point) const noexcept {
+template <unsigned D, bool LFS> FLOAT_T EDTReader<D, LFS>::signedDistanceAt(const VectorF<D> &point) const noexcept {
   return pimpl_->distance_map->GetPixel(pimpl_->vectorToIndex(point));
 }
 
-template <unsigned D>
+template <unsigned D, bool LFS>
 [[nodiscard]] std::vector<FLOAT_T>
-EDTReader<D>::signedDistanceAt(const VectorF<D> &point, const std::span<const size_t, D> &size) const noexcept {
+EDTReader<D, LFS>::signedDistanceAt(const VectorF<D> &point, const std::span<const size_t, D> &size) const noexcept {
   const typename Impl::Index min_corner = pimpl_->vectorToIndex(point);
   std::vector<FLOAT_T> result;
   result.reserve(std::accumulate(size.begin(), size.end(), size_t{1}, std::multiplies<>()));
@@ -189,7 +251,7 @@ EDTReader<D>::signedDistanceAt(const VectorF<D> &point, const std::span<const si
   return result;
 }
 
-template <unsigned D> size_t EDTReader<D>::findBoundaryRegion(const Vector4F &point) const noexcept {
+template <unsigned D, bool LFS> size_t EDTReader<D, LFS>::findBoundaryRegion(const Vector4F &point) const noexcept {
   const typename Impl::Index index = pimpl_->vectorToIndex(point - 0.5 * spacing());
   std::array<unsigned char, 1U << 4U> distances{};
   std::array<size_t, D> size{};
@@ -198,15 +260,24 @@ template <unsigned D> size_t EDTReader<D>::findBoundaryRegion(const Vector4F &po
   return *std::ranges::max_element(distances);
 }
 
-template <unsigned D> VectorF<D> EDTReader<D>::closestAt(const VectorF<D> &point) const noexcept {
+template <unsigned D, bool LFS> VectorF<D> EDTReader<D, LFS>::closestAt(const VectorF<D> &point) const noexcept {
   typename Impl::Index index = pimpl_->vectorToIndex(point);
   index += pimpl_->vector_map->GetPixel(index);
   return pimpl_->indexToVector(index);
 }
 
-template <unsigned D> Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> EDTReader<D>::boundingBox() const noexcept {
+template <unsigned D, bool LFS>
+FLOAT_T EDTReader<D, LFS>::distanceToThinnedAt(const VectorF<D> &point) const noexcept
+requires LFS
+{
+  return pimpl_->thinned_distance_map->GetPixel(pimpl_->vectorToIndex(point));
+}
+
+template <unsigned D, bool LFS>
+Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)> EDTReader<D, LFS>::boundingBox() const noexcept {
   return pimpl_->bounding_box;
 }
 
-template class EDTReader<4>;
+template class EDTReader<4, false>;
+template class EDTReader<4, true>;
 } // namespace stmesh

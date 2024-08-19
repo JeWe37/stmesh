@@ -17,6 +17,7 @@
 #include <boost/heap/fibonacci_heap.hpp>
 
 #include "stmesh/geometric_simplex.hpp"
+#include "stmesh/lfs_schemes.hpp"
 #include "stmesh/meshing_algorithm.hpp"
 #include "stmesh/meshing_cell.hpp"
 #include "stmesh/sdf.hpp"
@@ -74,8 +75,8 @@ TEST_CASE("Test meshing algorithm base functionality", "[meshing_base][meshing_a
       stmesh::FLOAT_T(1.0),
       stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
   stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(0.001),
-                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(2.0),
-                                             stmesh::FLOAT_T(0.5));
+                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0),
+                                             stmesh::lfs_schemes::Constant(stmesh::FLOAT_T(2.0)), stmesh::FLOAT_T(0.5));
   SECTION("Correctly constructed") {
     REQUIRE(meshing_algorithm.triangulation().boundingBox().min() == -stmesh::Vector4F::Constant(5.0));
     REQUIRE(meshing_algorithm.triangulation().boundingBox().max() == stmesh::Vector4F::Constant(5.0));
@@ -206,9 +207,9 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
   const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
       stmesh::FLOAT_T(40.0),
       stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
-  stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(0.5),
-                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(5.0),
-                                             stmesh::FLOAT_T(30.0));
+  stmesh::MeshingAlgorithm meshing_algorithm(
+      sdf_surface_adapter, stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0),
+      stmesh::lfs_schemes::Constant(stmesh::FLOAT_T(5.0)), stmesh::FLOAT_T(30.0));
   for (const auto &point :
        {stmesh::Vector4F{stmesh::FLOAT_T(28.4), stmesh::FLOAT_T(11.6), stmesh::FLOAT_T(-32), stmesh::FLOAT_T(39.2)},
         stmesh::Vector4F{stmesh::FLOAT_T(-37.2), stmesh::FLOAT_T(-22), stmesh::FLOAT_T(-32.8), stmesh::FLOAT_T(30.8)},
@@ -351,9 +352,8 @@ TEST_CASE("End to end sphere meshing", "[sphere_meshing][meshing_algorithm]") {
   const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
       stmesh::FLOAT_T(0.2),
       stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
-  stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(1e-6),
-                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(0.15),
-                                             stmesh::FLOAT_T(0.12), std::nullopt, true);
+  stmesh::MeshingAlgorithm meshing_algorithm(
+      sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(1e-6), stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0),
+      stmesh::lfs_schemes::Constant(stmesh::FLOAT_T(0.15)), stmesh::FLOAT_T(0.12), std::nullopt, true);
   meshing_algorithm.triangulate([&] { verifyMeshingAlgorithm(meshing_algorithm, true); });
 }
-// NOLINTEND(misc-include-cleaner)
