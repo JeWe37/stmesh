@@ -241,7 +241,7 @@ template <unsigned D> bool VoxelComplex<D>::thinningStep(size_t n_threads) {
         if (fixed_[idx] || checkShortcut(idx))
           new_table.set(idx, thread_id);
       },
-      {}, [&](size_t thread_id) { new_table.finalizeThread(thread_id); }, n_threads);
+      {}, [&](size_t thread_id) { new_table.commit(thread_id); }, n_threads);
 
   // it might not look it, but this is actually a loop(at compile time, for kD=D..0)
   [&]<unsigned... Vals>(std::integer_sequence<unsigned, Vals...>) {
@@ -256,7 +256,7 @@ template <unsigned D> bool VoxelComplex<D>::thinningStep(size_t n_threads) {
                 if (!new_table[idx])
                   removed.set(idx, thread_id);
               },
-              {}, [&](size_t thread_id) { removed.finalizeThread(thread_id); }, n_threads);
+              {}, [&](size_t thread_id) { removed.commit(thread_id); }, n_threads);
           removed.unregisterThreads();
 
           removed.iterateSet(
@@ -275,7 +275,7 @@ template <unsigned D> bool VoxelComplex<D>::thinningStep(size_t n_threads) {
                 iterateSubfaces<D, decltype(voxel_test), kD>({}, voxel_test);
               },
               [&](size_t thread_id) { new_table.restartIteration(thread_id); },
-              [&](size_t thread_id) { new_table.finalizeThread(thread_id); }, n_threads);
+              [&](size_t thread_id) { new_table.commit(thread_id); }, n_threads);
         }(),
         ...);
   }(std::make_integer_sequence<unsigned, D + 1>());

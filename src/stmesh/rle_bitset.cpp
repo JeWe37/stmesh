@@ -100,8 +100,6 @@ void RleBitset::restartIteration(size_t thread_id) {
   current_updates_[thread_id].hint = current_updates_[thread_id].thread_runs.before_begin();
 }
 
-void RleBitset::finalizeThread(size_t thread_id) { commit(thread_id); }
-
 void RleBitset::unregisterThreads() {
   for (const CurrentUpdate &current_update : current_updates_)
     std::ranges::copy(current_update.thread_runs, std::back_inserter(runs_));

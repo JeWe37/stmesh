@@ -44,7 +44,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t data[], size_t size) { // NO
     if (bits[i])
       rle_bitset.set(i, 0);
   }
-  rle_bitset.finalizeThread(0);
+  rle_bitset.commit(0);
 
   if (bits.empty())
     return 0;
@@ -56,7 +56,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t data[], size_t size) { // NO
     rle_bitset.set(i, 0);
     bits[i] = true;
   }
-  rle_bitset.finalizeThread(0);
+  rle_bitset.commit(0);
   rle_bitset.unregisterThreads();
 
   if (!verifyBitset(bits, rle_bitset))

@@ -44,7 +44,7 @@ TEST_CASE("RleBitset set operations", "[rlebitset]") {
     stmesh::RleBitset b(100);
     b.registerThreads(1);
     b.set(50, 0);
-    b.finalizeThread(0);
+    b.commit(0);
     b.unregisterThreads();
     REQUIRE(b[50] == true);
     for (size_t i = 0; i < 100; ++i) {
@@ -79,7 +79,7 @@ TEST_CASE("RleBitset threading support", "[rlebitset][threading]") {
         if (i % 2 == 0)
           b.set(i, thread_id);
       }
-      b.finalizeThread(thread_id);
+      b.commit(thread_id);
     };
 
     std::vector<std::thread> threads;
@@ -102,7 +102,7 @@ TEST_CASE("RleBitset iterateSet", "[rlebitset][iterate_set]") {
     b.registerThreads(1);
     for (size_t i = 0; i < 100; i += 2)
       b.set(i, 0);
-    b.finalizeThread(0);
+    b.commit(0);
     b.unregisterThreads();
 
     std::vector<size_t> setIndices;
@@ -118,7 +118,7 @@ TEST_CASE("RleBitset iterateSet", "[rlebitset][iterate_set]") {
     b.registerThreads(1);
     for (size_t i = 0; i < 1000; i += 3)
       b.set(i, 0);
-    b.finalizeThread(0);
+    b.commit(0);
     b.unregisterThreads();
 
     std::vector<std::vector<size_t>> threadSetIndices(4);
