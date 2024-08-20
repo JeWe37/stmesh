@@ -1,18 +1,23 @@
+#include <CLI/Validators.hpp>
 #include <array>
+#include <cstdint>
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <memory>
 #include <optional>
 #include <stmesh/lfs_schemes.hpp>
+#include <stmesh/utility.hpp>
 #include <string>
 
 #include <CLI/App.hpp>
 // NOLINTNEXTLINE(misc-include-cleaner)
 #include <CLI/CLI.hpp>
 #include <CLI/Option.hpp>
+#include <exprtk.hpp>
 #include <fmt/core.h>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
@@ -23,6 +28,8 @@
 // configuration step. It creates a namespace called `stmesh`. You can modify
 // the source template at `configured_files/config.hpp.in`.
 #include <internal_use_only/config.hpp>
+
+enum class RadiusSchemes : uint8_t { kConstant, kImage, kLfs, kBoundary };
 
 int main(int argc, const char **argv) {
   spdlog::cfg::load_env_levels();
@@ -85,8 +92,19 @@ int main(int argc, const char **argv) {
     stmesh::FLOAT_T delta;
     app.add_option("--delta", delta, "delta for meshing algorithm")->default_val(stmesh::FLOAT_T(5.0));
 
-    stmesh::FLOAT_T max_radius;
-    app.add_option("--max-radius", max_radius, "Maximum radius for the meshing algorithm")
+    RadiusSchemes radius_scheme{};
+    std::map<std::string, RadiusSchemes> radius_scheme_map{{"constant", RadiusSchemes::kConstant},
+                                                           {"image", RadiusSchemes::kImage},
+                                                           {"lfs", RadiusSchemes::kLfs},
+                                                           {"boundary", RadiusSchemes::kBoundary}};
+    app.add_option_function<std::string>(
+           "--radius-scheme", [&](const std::string &val) { radius_scheme = radius_scheme_map.at(val); },
+           "Radius scheme for meshing algorithm")
+        ->default_val("constant")
+        ->run_callback_for_default();
+
+    std::string radius_scheme_arg;
+    app.add_option("--radius-scheme-arg", radius_scheme_arg, "Argument for the radius scheme")
         ->default_val(std::numeric_limits<stmesh::FLOAT_T>::infinity());
 
     bool disable_rule6{};
@@ -99,9 +117,8 @@ int main(int argc, const char **argv) {
     std::optional<std::string> edt_file;
     CLI::Option *edt_file_option = app.add_option("--edt-file", edt_file, "Read an EDT file");
 
-    bool constant_lfs{};
+    bool constant_lfs = true;
     app.add_flag("!--no-constant-lfs", constant_lfs, "Use a constant local feature size, default true")
-        ->default_val(true)
         ->needs(edt_file_option);
 
     stmesh::HypercubeBoundaryManager hypercube_boundary_manager;
@@ -140,10 +157,12 @@ int main(int argc, const char **argv) {
     }
 
     const auto mesh = [&]<bool LFS = false>(const auto &surface_adapter, auto &&lfs_scheme,
+                                            auto &&selected_radius_scheme,
                                             const std::shared_ptr<stmesh::EDTReader<4, LFS>> &edt_reader = nullptr) {
       // NOLINTNEXTLINE(misc-const-correctness)
-      stmesh::MeshingAlgorithm meshing_algorithm(surface_adapter, rho_bar, tau_bar, zeta, b, lfs_scheme, max_radius,
-                                                 seed, disable_rule6);
+      stmesh::MeshingAlgorithm meshing_algorithm(
+          surface_adapter, rho_bar, tau_bar, zeta, b, std::forward<decltype(lfs_scheme)>(lfs_scheme),
+          std::forward<decltype(selected_radius_scheme)>(selected_radius_scheme), seed, disable_rule6);
 
       spdlog::info("Setup complete. Starting meshing...");
 
@@ -183,27 +202,83 @@ int main(int argc, const char **argv) {
       }
     };
 
+    const auto invoke_scheme = [&]<bool LFS = false>(const auto &surface_adapter, auto &&lfs_scheme,
+                                                     const std::shared_ptr<stmesh::EDTReader<4, LFS>> &edt_reader =
+                                                         nullptr) {
+      if (radius_scheme == RadiusSchemes::kConstant) {
+        spdlog::debug("Using constant radius scheme");
+        mesh(surface_adapter, std::forward<decltype(lfs_scheme)>(lfs_scheme),
+             stmesh::radius_schemes::Constant(stmesh::FLOAT_T(std::stod(radius_scheme_arg))), edt_reader);
+      } else if (radius_scheme == RadiusSchemes::kImage) {
+        spdlog::debug("Using image radius scheme");
+        mesh(surface_adapter, std::forward<decltype(lfs_scheme)>(lfs_scheme),
+             stmesh::radius_schemes::ImageRadius(radius_scheme_arg), edt_reader);
+      } else {
+        // NOLINTBEGIN(misc-const-correctness)
+        exprtk::symbol_table<stmesh::FLOAT_T> symbol_table;
+        exprtk::expression<stmesh::FLOAT_T> expression;
+        exprtk::parser<stmesh::FLOAT_T> parser;
+
+        stmesh::FLOAT_T d{};
+        // NOLINTEND(misc-const-correctness)
+        symbol_table.add_variable("d", d);
+        symbol_table.add_constants();
+
+        expression.register_symbol_table(symbol_table);
+
+        if (!parser.compile(radius_scheme_arg, expression)) {
+          spdlog::error("Failed to compile expression: {}", parser.error());
+          return false;
+        }
+
+        auto radius_scheme_lambda = [&](const stmesh::FLOAT_T &val) {
+          d = val;
+          return expression.value();
+        };
+
+        if (radius_scheme == RadiusSchemes::kLfs) {
+          if constexpr (LFS) {
+            spdlog::debug("Using LFS radius scheme");
+            mesh(surface_adapter, std::forward<decltype(lfs_scheme)>(lfs_scheme),
+                 stmesh::radius_schemes::LFSRadius(edt_reader, radius_scheme_lambda), edt_reader);
+          } else
+            return false;
+        } else if (radius_scheme == RadiusSchemes::kBoundary && edt_reader) {
+          spdlog::debug("Using boundary distance radius scheme");
+          mesh(surface_adapter, std::forward<decltype(lfs_scheme)>(lfs_scheme),
+               stmesh::radius_schemes::BoundaryDistanceRadius(edt_reader, radius_scheme_lambda), edt_reader);
+        } else
+          return false;
+      }
+      return true;
+    };
+
     if (edt_file) {
       spdlog::info("Reading EDT file {}...", *edt_file);
       if (constant_lfs) {
+        spdlog::debug("Using constant LFS");
         const auto edt_reader = std::make_shared<stmesh::EDTReader<4>>(*edt_file);
         const stmesh::EDTSurfaceAdapter adapter(edt_reader);
         spdlog::info("EDT file read successfully! Bounding box: min=({}), max=({})",
                      edt_reader->boundingBox().min().transpose(), edt_reader->boundingBox().max().transpose());
-        mesh(adapter, stmesh::lfs_schemes::Constant(delta), edt_reader);
+        if (!invoke_scheme(adapter, stmesh::lfs_schemes::Constant(delta), edt_reader))
+          return EXIT_FAILURE;
       } else {
+        spdlog::debug("Using binary image approximation LFS");
         const auto edt_reader = std::make_shared<stmesh::EDTReader<4, true>>(*edt_file);
         const stmesh::EDTSurfaceAdapter adapter(edt_reader);
         spdlog::info("EDT file read successfully! Bounding box: min=({}), max=({})",
                      edt_reader->boundingBox().min().transpose(), edt_reader->boundingBox().max().transpose());
-        mesh(adapter, stmesh::lfs_schemes::BinaryImageApproximation(delta, edt_reader), edt_reader);
+        if (!invoke_scheme(adapter, stmesh::lfs_schemes::BinaryImageApproximation(delta, edt_reader), edt_reader))
+          return EXIT_FAILURE;
       }
     } else {
       const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
           stmesh::FLOAT_T(30.0),
           stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(30.0)});
-
-      mesh(sdf_surface_adapter, stmesh::lfs_schemes::Constant(delta));
+      spdlog::debug("Using constant LFS");
+      if (!invoke_scheme(sdf_surface_adapter, stmesh::lfs_schemes::Constant(delta)))
+        return EXIT_FAILURE;
     }
     spdlog::info("Done!");
     return EXIT_SUCCESS;

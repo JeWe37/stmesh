@@ -21,7 +21,7 @@ struct Cell;
 using CellHandle = typename boost::heap::fibonacci_heap<Cell>::handle_type;
 
 struct ExtraData {
-  CellHandle cell_handle{};
+  CellHandle cell_handle;
   unsigned char dependents{};
 };
 
@@ -167,7 +167,7 @@ struct Rule3 : Rule {
     GeometricSimplex<4> simplex = triangulation.fullCellSimplex(full_cell);
     HyperSphere4 circumsphere = simplex.circumsphere();
     z = circumsphere.center();
-    if (surface.inside(z) && circumsphere.radius() >= meshing_algorithm.max_radius_) {
+    if (surface.inside(z) && circumsphere.radius() >= meshing_algorithm.maxRadiusAt(z)) {
       meshing_algorithm.incrementRemaining();
       return 1;
     }
@@ -343,9 +343,9 @@ struct Complete : Rule {
 using Rules = std::variant<Rule1, Rule2, Rule3, Rule4, Rule5, Rule6, Complete>;
 
 struct Cell {
-  Rules rule{};
+  Rules rule;
   int random{};
-  Triangulation::FullCellHandle full_cell{};
+  Triangulation::FullCellHandle full_cell;
 
   friend auto operator<=>(const Cell &lhs, const Cell &rhs) noexcept {
     int lhsindex = std::visit([](const auto &r) { return r.kIndex; }, lhs.rule);

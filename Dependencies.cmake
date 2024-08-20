@@ -115,4 +115,14 @@ function(stmesh_setup_dependencies)
     target_compile_options(mph INTERFACE -fconstexpr-steps=100000000 -mbmi2)
   endif()
   add_library(mph::mph ALIAS mph)
+
+  CPMAddPackage(
+    Name exprtk
+    GITHUB_REPOSITORY ArashPartow/exprtk
+    GIT_TAG f46bffcd6966d38a09023fb37ba9335214c9b959
+    DOWNLOAD_ONLY YES
+  )
+  add_library(exprtk INTERFACE)
+  target_include_directories(exprtk SYSTEM INTERFACE ${exprtk_SOURCE_DIR})
+  add_library(exprtk::exprtk ALIAS exprtk)
 endfunction()

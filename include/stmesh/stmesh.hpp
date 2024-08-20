@@ -9,6 +9,7 @@
 #include "lfs_schemes.hpp"
 #include "meshing_algorithm.hpp"
 #include "mixd_writer.hpp"
+#include "radius_schemes.hpp"
 #include "rle_bitset.hpp"
 #include "sdf.hpp"
 #include "sdf_mixins.hpp"

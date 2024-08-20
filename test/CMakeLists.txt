@@ -41,6 +41,7 @@ add_executable(tests
   utility_tests.cpp
   bitset_tests.cpp
   rle_bitset_tests.cpp
+  radius_schemes_tests.cpp
   voxel_complex_tests.cpp
 )
 target_link_libraries(

@@ -27,6 +27,7 @@
 #include "geometric_simplex.hpp"
 #include "lfs_schemes.hpp" // IWYU pragma: keep
 #include "meshing_cell.hpp"
+#include "radius_schemes.hpp" // IWYU pragma: keep
 #include "sdf.hpp"
 #include "surface_adapters.hpp" // IWYU pragma: keep
 #include "triangulation.hpp"
@@ -45,12 +46,14 @@ namespace stmesh {
  * good pentatopes, by some definition of good.
  * This is useful for space-time finite element algorithms, such as offered by XNS.
  * It is also possible to specify the local feature size(LFS) approximation scheme to use.
+ * Finally, the limit on the maximum radius of a pentatope can be specified using a radius scheme.
  *
  * @tparam Surface The surface adapter
  * @tparam LFS The LFS approximation scheme
+ * @tparam RadiusScheme The maximum radius scheme
  * @tparam Random The random number generator
  */
-template <SurfaceAdapter4 Surface, lfs_schemes::LFSScheme LFS,
+template <SurfaceAdapter4 Surface, lfs_schemes::LFSScheme LFS, radius_schemes::RadiusScheme RadiusScheme,
           std::uniform_random_bit_generator Random = std::mt19937_64>
 class MeshingAlgorithm {
 
@@ -61,6 +64,7 @@ class MeshingAlgorithm {
   detail::Triangulation triangulation_;
   Surface surface_;
   LFS lfs_;
+  RadiusScheme radius_scheme_;
   Random gen_;
 
   using Point = detail::Triangulation::BGPoint;
@@ -72,7 +76,7 @@ class MeshingAlgorithm {
   Tree tree_removal_;
   Tree tree_insertion_;
 
-  FLOAT_T rho_bar_, tau_bar_, zeta_, b_, max_radius_;
+  FLOAT_T rho_bar_, tau_bar_, zeta_, b_;
 
   size_t remaining_{};
   bool disable_rule6_;
@@ -221,8 +225,9 @@ public:
    * Constructs a meshing algorithm. The meshing algorithm is constructed from a surface adapter, a rho bar, a tau bar,
    * a zeta, a b, and a delta. The rho bar is the maximum radius-edge ratio of a pentatope. The tau bar is the minimum
    * quality of a pentatope. The zeta is the factor by which the picking region is scaled. The b is the maximum radius
-   * of small simplices. The delta is the maximum size of simplices. should maintain. The max radius is the maximum
-   * radius of a full cell. The seed is an optional seed for the random number generator.
+   * of small simplices. The delta is the maximum size of simplices. should maintain. The radius scheme determines the
+   * maximum radius of a full cell based on the position of its circumcenter. The seed is an optional seed for the
+   * random number generator.
    *
    * @param surface The surface adapter
    * @param rho_bar The maximum radius-edge ratio of a pentatope
@@ -230,16 +235,16 @@ public:
    * @param zeta The factor by which the picking region is scaled
    * @param b The maximum radius of small simplices
    * @param lfs The LFS approximation scheme
-   * @param max_radius The maximum radius of a full cell
+   * @param radius_scheem The maximum radius scheme
    * @param seed The seed for the random number generator
    * @param disable_rule6 Whether to disable rule 6
    */
-  MeshingAlgorithm(const Surface &surface, FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T zeta, FLOAT_T b, LFS lfs,
-                   FLOAT_T max_radius, std::optional<typename Random::result_type> seed = std::nullopt,
+  MeshingAlgorithm(const Surface &surface, FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T zeta, FLOAT_T b, LFS &&lfs,
+                   RadiusScheme &&radius_scheme, std::optional<typename Random::result_type> seed = std::nullopt,
                    bool disable_rule6 = false)
-      : triangulation_(calculateBoundingBox(surface, lfs.max())), surface_(surface), lfs_(lfs), gen_(),
-        rho_bar_(rho_bar), tau_bar_(tau_bar), zeta_(zeta), b_(b), max_radius_(max_radius),
-        disable_rule6_(disable_rule6) {
+      : triangulation_(calculateBoundingBox(surface, lfs.max())), surface_(surface), lfs_(std::forward<LFS>(lfs)),
+        radius_scheme_(std::forward<RadiusScheme>(radius_scheme)), gen_(), rho_bar_(rho_bar), tau_bar_(tau_bar),
+        zeta_(zeta), b_(b), disable_rule6_(disable_rule6) {
     if (seed)
       gen_.seed(*seed);
     for (auto &full_cell : triangulation_) {
@@ -248,6 +253,16 @@ public:
           queue_.push({rulesSatisfied(full_cell_handle), static_cast<int>(gen_()), full_cell_handle});
     }
   }
+
+  /// Gets the maximum radius at a position
+  /**
+   * Gets the maximum radius at a position. The maximum radius at a position is the maximum radius of a full cell based
+   * on the position of its circumcenter. It is determined by the radius scheme.
+   *
+   * @param pos The position
+   * @return The maximum radius at the position
+   */
+  [[nodiscard]] FLOAT_T maxRadiusAt(const Vector4F &pos) const noexcept { return radius_scheme_(pos); }
 
   /// Calculate the bounding box that is far enough from surface
   /**

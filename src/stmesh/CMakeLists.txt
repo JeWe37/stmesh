@@ -15,6 +15,7 @@ add_library(stmesh
   rle_bitset.cpp
   bitset.cpp
   lfs_schemes.cpp
+  radius_schemes.cpp
   ${CMAKE_BINARY_DIR}/src/generator/table.cpp
 )
 
