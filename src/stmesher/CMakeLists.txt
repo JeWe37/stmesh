@@ -14,3 +14,5 @@ target_link_system_libraries(
           stmesh::stmesh)
 
 target_include_directories(stmesher PRIVATE "${CMAKE_BINARY_DIR}/configured_files/include")
+
+install(TARGETS stmesher DESTINATION bin)

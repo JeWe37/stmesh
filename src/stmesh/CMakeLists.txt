@@ -64,3 +64,11 @@ endif()
 if(BUILD_TESTING)
   target_compile_definitions(stmesh PRIVATE STMESH_TESTING)
 endif()
+
+install(
+  TARGETS stmesh
+  EXPORT stmesh-targets
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
+  RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include)
