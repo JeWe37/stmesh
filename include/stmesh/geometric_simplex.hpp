@@ -2,8 +2,8 @@
 #define STMESH_GEOMETRIC_SIMPLEX_HPP
 
 #include <array>
-#include <concepts> // IWYU pragma: keep
 #include <cstddef>
+#include <ranges>
 #include <utility>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>

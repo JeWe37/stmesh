@@ -6,6 +6,7 @@ Diagnostics:
   UnusedIncludes: Strict
   ClangTidy:
     Add: misc-include-cleaner
+    FastCheckFilter: Loose
   Includes:
     IgnoreHeader: 
       - 'Eigen/src/(Core|Geometry|SVD)/.*'

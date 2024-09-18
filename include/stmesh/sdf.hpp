@@ -1,7 +1,7 @@
 #ifndef STMESH_SDF_HPP
 #define STMESH_SDF_HPP
 
-#include <concepts> // IWYU pragma: keep
+#include <concepts>
 
 #include <Eigen/Geometry>
 #include <fmt/core.h>
@@ -66,7 +66,7 @@ class HyperSphere : public stmesh::DistanceMixin<HyperSphere<D>, D>, public Samp
   VectorF<D> center_;
 
 public:
-  static inline constexpr unsigned kDimension = D; ///< The dimension of the space
+  static constexpr unsigned kDimension = D; ///< The dimension of the space
 
   /// Construct a hyper sphere
   /**
@@ -162,7 +162,7 @@ class HyperCube : public stmesh::DistanceMixin<HyperCube<D>, D>, public CentralD
   VectorF<D> max_;
 
 public:
-  static inline constexpr unsigned kDimension = D; ///< The dimension of the space
+  static constexpr unsigned kDimension = D; ///< The dimension of the space
 
   /// Construct a hyper cube
   /**

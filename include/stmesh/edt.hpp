@@ -2,7 +2,7 @@
 #define STMESH_EDT_READER_HPP
 
 #include <array>
-#include <concepts> // IWYU pragma: keep
+#include <concepts>
 #include <cstddef>
 #include <memory>
 #include <span>

@@ -2,7 +2,7 @@
 #define STMESH_UTILITY_HPP
 
 #include <array>
-#include <concepts> // IWYU pragma: keep
+#include <concepts>
 #include <cstddef>
 #include <limits>
 

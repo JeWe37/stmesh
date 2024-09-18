@@ -18,7 +18,7 @@ namespace stmesh {
  * @tparam D The dimension of the space
  */
 template <typename T, unsigned D> class CentralDifferenceNormalMixin {
-  static inline constexpr FLOAT_T kEps = sqrt(std::numeric_limits<FLOAT_T>::epsilon());
+  static constexpr FLOAT_T kEps = sqrt(std::numeric_limits<FLOAT_T>::epsilon());
 
 public:
   /// Calculate the normal of the signed distance function at a point

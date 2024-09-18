@@ -1,7 +1,7 @@
 #ifndef STMESH_LFS_SCHEMES_HPP
 #define STMESH_LFS_SCHEMES_HPP
 
-#include <concepts> // IWYU pragma: keep
+#include <concepts>
 #include <memory>
 
 #include "edt.hpp"
