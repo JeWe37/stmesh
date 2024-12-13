@@ -4,7 +4,18 @@
 #include <cstddef>
 
 #include "stmesh/edt.hpp"
+#include "stmesh/geometric_simplex.hpp"
 #include "stmesh/utility.hpp"
+#include "stmesh/writable_triangulation.hpp"
+
+struct DummyWritableCell {
+  stmesh::GeometricSimplex<4> simplex;
+
+  [[nodiscard]] stmesh::GeometricSimplex<4> geometricSimplex() const noexcept { return simplex; }
+  [[nodiscard]] static bool isSurfaceSide(size_t) noexcept { return false; }
+};
+
+static_assert(stmesh::WritableCell<DummyWritableCell>);
 
 TEST_CASE("Test euclidean distance transform with sphere", "[sphere_edt][edt]") {
   const stmesh::EDTReader<4, true> reader("data/sphere.mha");
@@ -27,10 +38,18 @@ TEST_CASE("Test euclidean distance transform with sphere", "[sphere_edt][edt]") 
   REQUIRE(
       reader.closestAt({stmesh::FLOAT_T(12.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0)}) ==
       stmesh::Vector4F{stmesh::FLOAT_T(2.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5), stmesh::FLOAT_T(22.5)});
-  REQUIRE(reader.findBoundaryRegion({stmesh::FLOAT_T(12.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0),
-                                     stmesh::FLOAT_T(22.0)}) == size_t{1});
-  REQUIRE(reader.findBoundaryRegion({stmesh::FLOAT_T(32.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0),
-                                     stmesh::FLOAT_T(22.0)}) == size_t{2});
+  stmesh::Vector4F region1vec{stmesh::FLOAT_T(12.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0),
+                              stmesh::FLOAT_T(22.0)};
+  stmesh::Vector4F region2vec{stmesh::FLOAT_T(32.0), stmesh::FLOAT_T(22.0), stmesh::FLOAT_T(22.0),
+                              stmesh::FLOAT_T(22.0)};
+  REQUIRE(reader.findBoundaryRegion(DummyWritableCell({region1vec, region1vec, region1vec, region1vec, region1vec}),
+                                    0) == size_t{1});
+  REQUIRE(reader.findBoundaryRegion(DummyWritableCell({region2vec, region2vec, region2vec, region2vec, region2vec}),
+                                    0) == size_t{2});
+  REQUIRE(reader.findBoundaryRegion(DummyWritableCell({region1vec, region2vec, region1vec, region1vec, region1vec}),
+                                    0) == size_t{2});
+  REQUIRE(reader.findBoundaryRegion(DummyWritableCell({region2vec, region1vec, region1vec, region1vec, region1vec}),
+                                    0) == size_t{1});
 
   const stmesh::FLOAT_T radius = reader.boundingBox().sizes().mean() / 2.0 - 1.0;
   for (int i = 0; i < 100; ++i) {

@@ -9,7 +9,7 @@ add_library(stmesh
   vtk_writer.cpp
   edt.cpp
   boundary_region_manager.cpp
-  mixd_writer.cpp
+  mixd.cpp
   marching_hypercubes.cpp
   voxel_complex.cpp
   rle_bitset.cpp

@@ -1,9 +1,12 @@
 #ifndef STMESH_TRIANGULATION_HPP
 #define STMESH_TRIANGULATION_HPP
 
-#include <concepts>
+#include <array>
 #include <cstddef>
+#include <filesystem>
+#include <iterator>
 #include <optional>
+#include <ranges>
 #include <tuple>
 #include <unordered_map>
 #include <variant>
@@ -23,11 +26,130 @@
 #include <boost/geometry/geometries/point.hpp>
 #include <boost/geometry/index/parameters.hpp>
 #include <boost/geometry/index/rtree.hpp>
+#include <boost/iterator/iterator_adaptor.hpp>
+#include <boost/iterator/iterator_facade.hpp>
 
+#include "boundary_region_manager.hpp"
 #include "geometric_simplex.hpp"
+#include "stmesh/edt.hpp"
+#include "surface_adapters.hpp"
 #include "utility.hpp"
+#include "writable_triangulation.hpp"
 
 namespace stmesh {
+/// Triangulation created by loading a set of mixd files
+/**
+ * Triangulation created by loading a set of mixd files. This class represents a triangulation created by loading a
+ * the files specified in the minf file. It can act as a WritableTriangulation and BoundaryRegionManager.
+ */
+class TriangulationFromMixd {
+  std::vector<Vector4F> mxyz_;
+  std::vector<std::array<int, 5>> mien_;
+  std::vector<std::array<int, 5>> mrng_;
+
+  class MixdCell {
+    const TriangulationFromMixd *triangulation_;
+    size_t index_;
+
+    friend class TriangulationFromMixd;
+
+  public:
+    MixdCell(const TriangulationFromMixd *triangulation, size_t index);
+
+    [[nodiscard]] GeometricSimplex<4> geometricSimplex() const noexcept;
+
+    [[nodiscard]] bool isSurfaceSide(size_t i) const noexcept;
+  };
+
+public:
+  /// An iterator for the elements in the file.
+  /**
+   * An iterator for the elements in the file. This class is an iterator for the elements in the file, and is used to
+   * iterate over this class, returning WritableCell objects.
+   */
+  // NOLINTNEXTLINE(readability-identifier-naming)
+  class iterator : public boost::iterator_adaptor<iterator, std::vector<std::array<int, 5>>::const_iterator, MixdCell,
+                                                  std::forward_iterator_tag, MixdCell> {
+    const TriangulationFromMixd *triangulation_;
+
+    friend class boost::iterator_core_access;
+
+    [[nodiscard]] MixdCell dereference() const noexcept;
+
+  public:
+    /// A constructor from a triangulation and an iterator
+    /**
+     * A constructor from a triangulation and an iterator. This constructor creates an iterator from a triangulation
+     * pointer and an iterator.
+     *
+     * @param triangulation The triangulation to create the iterator for
+     * @param it The iterator to create the iterator for
+     */
+    iterator(const TriangulationFromMixd *triangulation, const std::vector<std::array<int, 5>>::const_iterator &it);
+
+    /// A default constructor
+    /**
+     * A default constructor. This constructor creates an iterator with a null triangulation pointer and a default
+     * iterator, serving as the end iterator.
+     */
+    iterator();
+  };
+
+  /// A constructor from a minf file path
+  /**
+   * A constructor from a minf file path. This constructor creates a triangulation from a minf file path. The minf file
+   * is read and the vertices, elements, and boundary regions are loaded into the triangulation.
+   *
+   * @param minf_file The path to the minf file
+   */
+  explicit TriangulationFromMixd(const std::filesystem::path &minf_file);
+
+  /// Gets the bounding box of the triangulation
+  /**
+   * Gets the bounding box of the triangulation. This function returns the bounding box of the triangulation, which is
+   * the bounding box of all the vertices in the triangulation.
+   *
+   * @return The bounding box
+   */
+  [[nodiscard]] Eigen::AlignedBox<double, 4> boundingBox() const noexcept;
+
+  /// Gets the begin iterator for the elements in the file
+  /**
+   * Gets the begin iterator for the elements in the file. This function returns an iterator to the beginning of the
+   * elements in the file, as WritableCell objects.
+   *
+   * @return The begin iterator for the elements in the file
+   */
+  [[nodiscard]] iterator begin() const noexcept;
+
+  /// Gets the end iterator for the elements in the file
+  /**
+   * Gets the end iterator for the elements in the file. This function returns an iterator to the end of the elements
+   * in the file, as WritableCell objects.
+   *
+   * @return The end iterator for the elements in the file
+   */
+  [[nodiscard]] iterator end() const noexcept;
+
+  /// Gets the boundary region of a face
+  /**
+   * Gets the boundary region of a face. This function gets the boundary region of a face, i.e. the index of the
+   * boundary region that the face belongs to. These are obtained from the mrng file.
+   *
+   * @param cell The cell a face of which to get the boundary region for
+   * @param j The index of the face(i.e. the index of its covertex)
+   * @return The boundary region
+   */
+  [[nodiscard]] size_t findBoundaryRegion(const MixdCell &cell, size_t j) const noexcept;
+};
+
+static_assert(WritableTriangulation<TriangulationFromMixd>);
+static_assert(BoundaryRegionManager<TriangulationFromMixd>);
+
+namespace detail {
+template <typename ExtraData, SurfaceAdapter4 Surface> class WritableMainTriangulation;
+}
+
 /// A Delaunay triangulation in 4D
 /**
  * A Delaunay triangulation in 4D. This class is a wrapper around CGAL's Delaunay_triangulation_4 class, and provides
@@ -36,7 +158,8 @@ namespace stmesh {
  * inserted or removed. Additionally, it provides functionality for determining if newly inserted vertices are good
  * points.
  * The triangulation is templated on the type of extra data stored in the triangulation. This extra data is
- * stored in the full cells of the triangulation, and can be used to store additional information about the full cells.
+ * stored in the full cells of the triangulation, and can be used to store additional information about the full
+ * cells.
  *
  * @tparam ExtraData The type of extra data stored in the triangulation
  */
@@ -78,6 +201,10 @@ public:
   using BGPoint = bg::model::point<FLOAT_T, 4, bg::cs::cartesian>; ///< A boost::geometry point in 4D
   using BGBox = bg::model::box<BGPoint>;                           ///< A boost::geometry box in 4D
 
+  using iterator = DelaunayTriangulation::Finite_full_cell_iterator; ///< An iterator for the finite full cells
+  using const_iterator =
+      DelaunayTriangulation::Finite_full_cell_const_iterator; ///< A const iterator for the finite full cells
+
 private:
   DelaunayTriangulation triangulation_;
 
@@ -102,7 +229,8 @@ public:
 
   /// Converts a boost::geometry point to an Eigen vector
   /**
-   * Converts a boost::geometry point to an Eigen vector. Useful for converting points from the rtree to Eigen vectors.
+   * Converts a boost::geometry point to an Eigen vector. Useful for converting points from the rtree to Eigen
+   * vectors.
    *
    * @param point The point to convert
    * @return The vector
@@ -156,8 +284,8 @@ public:
   /**
    * Removes a vertex from the triangulation. This function removes a vertex from the triangulation, and returns a
    * handle to the new full cell containing the removed vertex. It also updates the rtree with the removed vertex.
-   * During this process, the full cells surrounding the vertex are removed and surrounding the returned FullCellHandle,
-   * uncommitted full cells are added.
+   * During this process, the full cells surrounding the vertex are removed and surrounding the returned
+   * FullCellHandle, uncommitted full cells are added.
    *
    * @param vertex The vertex to remove
    * @return The handle to the removed vertex
@@ -167,7 +295,8 @@ public:
   /// Finds all full cells in conflict with a point
   /**
    * Finds all full cells in conflict with a point. This function finds all full cells in conflict with a point, i.e.
-   * all full cells whose circumsphere contains the point. It returns a vector of handles to the conflicting full cells.
+   * all full cells whose circumsphere contains the point. It returns a vector of handles to the conflicting full
+   * cells.
    *
    * @param point The point to find the conflicting full cells for
    * @param hint A hint for the location to search for the conflicting full cells
@@ -177,8 +306,8 @@ public:
 
   /// Find surrounding uncommitted full cells and commit them
   /**
-   * Find surrounding uncommitted full cells and commit them. This function finds all uncommitted full cells surrounding
-   * a full cell, and commits them. It returns a vector of handles to the committed full cells.
+   * Find surrounding uncommitted full cells and commit them. This function finds all uncommitted full cells
+   * surrounding a full cell, and commits them. It returns a vector of handles to the committed full cells.
    *
    * @param start The full cell to start the search from
    * @return A vector of handles to the committed full cells
@@ -209,8 +338,8 @@ public:
 
   /// Gets all vertices of a facet
   /**
-   * Gets all vertices of a facet. This function gets all vertices of a facet, and returns them as a matrix, where each
-   * column is a vertex.
+   * Gets all vertices of a facet. This function gets all vertices of a facet, and returns them as a matrix, where
+   * each column is a vertex.
    *
    * @param facet The facet to get the vertices for
    * @return The vertices of the facet
@@ -219,8 +348,8 @@ public:
 
   /// Gets the facet from a matrix of vertices
   /**
-   * Gets the facet from a matrix of vertices. This function gets the facet from a matrix of vertices, where each column
-   * is a vertex. It returns the facet by locating it in the triangulation.
+   * Gets the facet from a matrix of vertices. This function gets the facet from a matrix of vertices, where each
+   * column is a vertex. It returns the facet by locating it in the triangulation.
    *
    * @param vertices The matrix of vertices
    * @return The facet
@@ -230,10 +359,10 @@ public:
   /// Gets information about the cells on both sides of a facet
   /**
    * Gets information about the cells on both sides of a facet. This function gets information about the cells on both
-   * sides of a facet, and returns it as a tuple. The first element of the tuple is a tuple containing the vertex handle
-   * of the vertex opposite to the facet, the index of the vertex in the full cell, and the handle to the full cell. The
-   * second element of the tuple is an optional tuple containing the same information for the cell on the other side of
-   * the facet, if it is a finite cell.
+   * sides of a facet, and returns it as a tuple. The first element of the tuple is a tuple containing the vertex
+   * handle of the vertex opposite to the facet, the index of the vertex in the full cell, and the handle to the full
+   * cell. The second element of the tuple is an optional tuple containing the same information for the cell on the
+   * other side of the facet, if it is a finite cell.
    *
    * @param facet The facet to get the information for
    * @return A tuple containing information about the cells on both sides of the facet
@@ -265,8 +394,8 @@ public:
 
   /// Gets a GeometricSimplex<4> from a full cell
   /**
-   * Gets a GeometricSimplex<4> from a full cell. This function gets a GeometricSimplex<4> from a full cell, and returns
-   * it. The GeometricSimplex<4> is constructed from the vertices of the full cell.
+   * Gets a GeometricSimplex<4> from a full cell. This function gets a GeometricSimplex<4> from a full cell, and
+   * returns it. The GeometricSimplex<4> is constructed from the vertices of the full cell.
    *
    * @param full_cell The full cell to get the GeometricSimplex<4> for
    * @return The GeometricSimplex<4>
@@ -299,8 +428,8 @@ public:
 
   /// Gets the bounding box of the triangulation
   /**
-   * Gets the bounding box of the triangulation. This function returns the bounding box of the triangulation, initially
-   * set in the constructor.
+   * Gets the bounding box of the triangulation. This function returns the bounding box of the triangulation,
+   * initially set in the constructor.
    *
    * @return The bounding box
    */
@@ -313,7 +442,7 @@ public:
    *
    * @return The const begin iterator for the finite full cells
    */
-  [[nodiscard]] DelaunayTriangulation::Finite_full_cell_const_iterator cbegin() const;
+  [[nodiscard]] const_iterator cbegin() const;
 
   /// Gets the const end iterator for the finite full cells
   /**
@@ -322,16 +451,16 @@ public:
    *
    * @return The const end iterator for the finite full cells
    */
-  [[nodiscard]] DelaunayTriangulation::Finite_full_cell_const_iterator cend() const;
+  [[nodiscard]] const_iterator cend() const;
 
   /// Gets the begin iterator for the finite full cells
   /**
-   * Gets the begin iterator for the finite full cells. This function returns an iterator to the beginning of the finite
-   * full cells of the triangulation.
+   * Gets the begin iterator for the finite full cells. This function returns an iterator to the beginning of the
+   * finite full cells of the triangulation.
    *
    * @return The begin iterator for the finite full cells
    */
-  [[nodiscard]] DelaunayTriangulation::Finite_full_cell_iterator begin();
+  [[nodiscard]] iterator begin();
 
   /// Gets the end iterator for the finite full cells
   /**
@@ -340,7 +469,7 @@ public:
    *
    * @return The end iterator for the finite full cells
    */
-  [[nodiscard]] DelaunayTriangulation::Finite_full_cell_iterator end();
+  [[nodiscard]] iterator end();
 
   /// Gets the const begin iterator for the finite full cells
   /**
@@ -349,7 +478,7 @@ public:
    *
    * @return The const begin iterator for the finite full cells
    */
-  [[nodiscard]] DelaunayTriangulation::Finite_full_cell_const_iterator begin() const;
+  [[nodiscard]] const_iterator begin() const;
 
   /// Gets the const end iterator for the finite full cells
   /**
@@ -358,7 +487,113 @@ public:
    *
    * @return The const end iterator for the finite full cells
    */
-  [[nodiscard]] DelaunayTriangulation::Finite_full_cell_const_iterator end() const;
+  [[nodiscard]] const_iterator end() const;
+
+  template <typename ExtraData2, SurfaceAdapter4 Surface> friend class detail::WritableMainTriangulation;
+
+  /// Gets a writable triangulation from the triangulation
+  /**
+   * Gets a writable triangulation from the triangulation. This function returns a writable triangulation from the
+   * triangulation, which can be used to write out the solution contained in it. As the solution only contains cells
+   * whose circumcenters are inside the surface, the surface is needed to determine which cells are inside the surface.
+   *
+   * @param surface The surface to use for determining which cells are inside the surface
+   * @return The writable triangulation
+   */
+  template <SurfaceAdapter4 Surface>
+  [[nodiscard]] detail::WritableMainTriangulation<ExtraData, Surface>
+  writableTriangulation(Surface *surface) const noexcept {
+    return {this, surface};
+  }
 };
+
+namespace detail {
+template <typename ExtraData, SurfaceAdapter4 Surface> class WritableMainTriangulation {
+  using TriangulationED = Triangulation<ExtraData>;
+  const TriangulationED *triangulation_;
+  const Surface *surface_;
+
+  class WritableMainCell {
+    const TriangulationED *triangulation_;
+    const Surface *surface_;
+    TriangulationED::FullCellConstHandle handle_;
+
+  public:
+    WritableMainCell(const TriangulationED *triangulation, const Surface *surface,
+                     TriangulationED::FullCellConstHandle handle) noexcept
+        : triangulation_(triangulation), surface_(surface), handle_(handle) {}
+
+    [[nodiscard]] GeometricSimplex<4> geometricSimplex() const noexcept {
+      return triangulation_->fullCellSimplex(handle_);
+    }
+
+    [[nodiscard]] bool isSurfaceSide(size_t i) const noexcept {
+      auto neighbor = handle_->neighbor(i);
+      return triangulation_->isInfinite(neighbor) ||
+             !surface_->inside(triangulation_->fullCellSimplex(neighbor).circumsphere().center());
+    }
+  };
+
+public:
+  // NOLINTNEXTLINE(readability-identifier-naming)
+  class iterator : public boost::iterator_adaptor<iterator, typename TriangulationED::FullCellConstHandle,
+                                                  WritableMainCell, std::forward_iterator_tag, WritableMainCell> {
+    const TriangulationED *triangulation_;
+    const Surface *surface_;
+
+    friend class boost::iterator_core_access;
+    using iterator::iterator_adaptor_::base_reference;
+
+    [[nodiscard]] WritableMainCell dereference() const noexcept { return {triangulation_, surface_, base_reference()}; }
+
+    void increment() noexcept {
+      ++base_reference();
+      while (base_reference() != triangulation_->triangulation_.full_cells_end() &&
+             (triangulation_->isInfinite(base_reference()) ||
+              !surface_->inside(triangulation_->fullCellSimplex(base_reference()).circumsphere().center())))
+        ++base_reference();
+      if (base_reference() == triangulation_->triangulation_.full_cells_end()) {
+        triangulation_ = nullptr;
+        surface_ = nullptr;
+      }
+    }
+
+  public:
+    iterator() noexcept : triangulation_(nullptr), surface_(nullptr) {}
+
+    iterator(TriangulationED::FullCellConstHandle it, const TriangulationED *triangulation,
+             const Surface *surface) noexcept
+        : iterator::iterator_adaptor_(it), triangulation_(triangulation), surface_(surface) {}
+  };
+
+  WritableMainTriangulation(const TriangulationED *triangulation, const Surface *surface) noexcept
+      : triangulation_(triangulation), surface_(surface) {}
+
+  [[nodiscard]] Eigen::AlignedBox<FLOAT_T, 4> boundingBox() const noexcept { return triangulation_->boundingBox(); }
+
+  [[nodiscard]] iterator begin() const noexcept {
+    auto it = triangulation_->triangulation_.full_cells_begin();
+    while (it != triangulation_->triangulation_.full_cells_end() &&
+           (triangulation_->isInfinite(it) ||
+            !surface_->inside(triangulation_->fullCellSimplex(it).circumsphere().center())))
+      ++it;
+    return {it, triangulation_, surface_};
+  }
+
+  [[nodiscard]] iterator end() const noexcept {
+    return {triangulation_->triangulation_.full_cells_end(), triangulation_, surface_};
+  }
+};
+} // namespace detail
 } // namespace stmesh
+
+template <typename ExtraData, typename Surface>
+// NOLINTNEXTLINE(readability-identifier-naming)
+constexpr bool std::ranges::enable_borrowed_range<stmesh::detail::WritableMainTriangulation<ExtraData, Surface>> = true;
+
+namespace stmesh {
+static_assert(
+    WritableTriangulation<detail::WritableMainTriangulation<std::monostate, EDTSurfaceAdapter<EDTReader<4>>>>);
+} // namespace stmesh
+
 #endif

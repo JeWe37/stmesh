@@ -1,3 +1,3 @@
 add_subdirectory(generator)
 add_subdirectory(stmesh)
-add_subdirectory(stmesher)
+add_subdirectory(app)

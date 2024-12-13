@@ -1,4 +1,4 @@
-#include "stmesh/mixd_writer.hpp"
+#include "stmesh/mixd.hpp"
 
 #include <algorithm>
 #include <array>
@@ -6,12 +6,15 @@
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
+#include <ios>
+#include <stdexcept>
+#include <string>
 #include <string_view>
 #include <vector>
 
 #include "stmesh/utility.hpp"
 
-namespace stmesh::detail {
+namespace stmesh::mixd {
 void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::path &mxyz_file,
                const std::filesystem::path &mien_file, const std::filesystem::path &mrng_file, size_t number_elements,
                size_t number_nodes) {
@@ -47,7 +50,7 @@ std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Ve
 }
 
 std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view extension,
-                                   const std::vector<std::array<size_t, 5>> &full_cell_vertex_ids) {
+                                   const std::vector<std::array<int, 5>> &full_cell_vertex_ids) {
   file.replace_extension(extension);
   std::ofstream out(file);
   for (const auto &vertex_ids : full_cell_vertex_ids) {
@@ -61,11 +64,11 @@ std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view 
   return file;
 }
 
-bool positivePentatopeElementDet(const std::array<size_t, 5> &vertex_ids, const std::vector<Vector4F> &vertices) {
-  Vector4F xr1 = vertices[vertex_ids[0]] - vertices[vertex_ids[4]];
-  Vector4F xr2 = vertices[vertex_ids[1]] - vertices[vertex_ids[4]];
-  Vector4F xr3 = vertices[vertex_ids[2]] - vertices[vertex_ids[4]];
-  Vector4F xr4 = vertices[vertex_ids[3]] - vertices[vertex_ids[4]];
+bool positivePentatopeElementDet(const std::array<int, 5> &vertex_ids, const std::vector<Vector4F> &vertices) {
+  Vector4F xr1 = vertices[static_cast<size_t>(vertex_ids[0])] - vertices[static_cast<size_t>(vertex_ids[4])];
+  Vector4F xr2 = vertices[static_cast<size_t>(vertex_ids[1])] - vertices[static_cast<size_t>(vertex_ids[4])];
+  Vector4F xr3 = vertices[static_cast<size_t>(vertex_ids[2])] - vertices[static_cast<size_t>(vertex_ids[4])];
+  Vector4F xr4 = vertices[static_cast<size_t>(vertex_ids[3])] - vertices[static_cast<size_t>(vertex_ids[4])];
 
   const double cf11 = +xr4[3] * (xr2[1] * xr3[2] - xr3[1] * xr2[2]) - xr4[2] * (xr2[1] * xr3[3] - xr3[1] * xr2[3]) +
                       xr4[1] * (xr2[2] * xr3[3] - xr3[2] * xr2[3]);
@@ -80,4 +83,66 @@ bool positivePentatopeElementDet(const std::array<size_t, 5> &vertex_ids, const 
 
   return dettmp > FLOAT_T();
 }
-} // namespace stmesh::detail
+
+std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file) {
+  std::ifstream in(mxyz_file, std::ios::binary);
+  std::vector<Vector4F> vertices;
+  while (in) {
+    Vector4F vertex;
+    for (Eigen::Index i = 0; i < 4; ++i) {
+      std::array<char, sizeof(FLOAT_T)> coordinate_bytes{};
+      in.read(coordinate_bytes.data(), sizeof(FLOAT_T));
+      if (in.gcount() == 0 && in.eof() && i == 0)
+        return vertices;
+      if (in.gcount() != sizeof(FLOAT_T))
+        throw std::runtime_error("Unexpected end of file");
+
+      if constexpr (std::endian::native != std::endian::big)
+        std::ranges::reverse(coordinate_bytes);
+      vertex[i] = std::bit_cast<FLOAT_T>(coordinate_bytes);
+    }
+    vertices.emplace_back(vertex);
+  }
+  throw std::runtime_error("Unexpected end of file");
+}
+
+std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file) {
+  std::ifstream in(file, std::ios::binary);
+  std::vector<std::array<int, 5>> full_cell_vertex_ids;
+  while (in) {
+    std::array<int, 5> vertex_ids{};
+    for (size_t i = 0; i < 5; ++i) {
+      std::array<char, sizeof(int)> id_bytes{};
+      in.read(id_bytes.data(), sizeof(int));
+      if (in.gcount() == 0 && in.eof() && i == 0)
+        return full_cell_vertex_ids;
+      if (in.gcount() != sizeof(int))
+        throw std::runtime_error("Unexpected end of file");
+
+      if constexpr (std::endian::native != std::endian::big)
+        std::ranges::reverse(id_bytes);
+      vertex_ids.at(i) = std::bit_cast<int>(id_bytes);
+    }
+    full_cell_vertex_ids.emplace_back(vertex_ids);
+  }
+  throw std::runtime_error("Unexpected end of file");
+}
+
+MinfData readMinf(const std::filesystem::path &minf_file) {
+  std::ifstream in(minf_file);
+  MinfData data;
+  while (in) {
+    std::string line;
+    std::getline(in, line);
+    if (line.empty())
+      continue;
+    if (line.starts_with("mxyz "))
+      data.mxyz_file = line.substr(5);
+    else if (line.starts_with("mien "))
+      data.mien_file = line.substr(5);
+    else if (line.starts_with("mrng "))
+      data.mrng_file = line.substr(5);
+  }
+  return data;
+}
+} // namespace stmesh::mixd

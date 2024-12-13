@@ -31,6 +31,21 @@ template <unsigned D, unsigned N = D + 1> class GeometricSimplex {
 public:
   /// Construct a geometric simplex
   /**
+   * Construct a geometric simplex. The vertices of the simplex are given as a multiple vertex arguments. The vertices
+   * are copied into the simplex.
+   *
+   * @param args The vertices of the simplex
+   */
+  template <typename... Args>
+  requires(sizeof...(Args) == N)
+  // NOLINTNEXTLINE(hicpp-explicit-conversions)
+  GeometricSimplex(const Args &...args) : vertices_(D, N) {
+    Eigen::Index i = 0;
+    ((vertices_.col(i++) = args), ...);
+  }
+
+  /// Construct a geometric simplex
+  /**
    * Construct a geometric simplex. The vertices of the simplex are given as a range of vertices. The vertices are
    * copied into the simplex.
    *
@@ -300,6 +315,24 @@ public:
    * @return Whether the simplex is a small sliver simplex
    */
   [[nodiscard]] bool smallSliverSimplex(FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T max_radius) const noexcept;
+
+  /// Check if two simplices are equal
+  /**
+   * Check if two simplices are equal. Two simplices are equal if their vertices are equal.
+   *
+   * @param other The other simplex
+   * @return Whether the simplices are equal
+   */
+  [[nodiscard]] bool operator==(const GeometricSimplex &other) const noexcept;
+
+  /// Check if two simplices are not equal
+  /**
+   * Check if two simplices are not equal. Two simplices are not equal if their vertices are not equal.
+   *
+   * @param other The other simplex
+   * @return Whether the simplices are not equal
+   */
+  [[nodiscard]] bool operator!=(const GeometricSimplex &other) const noexcept;
 };
 } // namespace stmesh
 

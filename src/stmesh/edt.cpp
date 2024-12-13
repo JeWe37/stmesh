@@ -251,7 +251,7 @@ EDTReader<D, LFS>::signedDistanceAt(const VectorF<D> &point, const std::span<con
   return result;
 }
 
-template <unsigned D, bool LFS> size_t EDTReader<D, LFS>::findBoundaryRegion(const Vector4F &point) const noexcept {
+template <unsigned D, bool LFS> size_t EDTReader<D, LFS>::pointBoundaryRegion(const Vector4F &point) const noexcept {
   const typename Impl::Index index = pimpl_->vectorToIndex(point - 0.5 * spacing());
   std::array<unsigned char, 1U << 4U> distances{};
   std::array<size_t, D> size{};

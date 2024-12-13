@@ -125,8 +125,9 @@ requires(D == 4 && N >= 4)
     if (points.size() >= 4) {
       for (size_t i = 0; i < points.size(); ++i) {
         for (size_t j = 0; j < points.size(); ++j) {
-          constexpr double kEps = 1e-6;
-          if (i != j && Kernel().compute_squared_distance_3_object()(points[i], points[j]) < kEps) {
+          constexpr double kEps = 1e-9;
+          if (i != j && Kernel().compute_squared_distance_3_object()(points[i], points[j]) <
+                            kEps * std::pow(shortestEdgeLength(), 2)) {
             points.erase(points.begin() + static_cast<std::vector<Kernel::Point_3>::difference_type>(j));
             --j;
             if (i > j)
@@ -324,6 +325,12 @@ template <unsigned D, unsigned N>
                                                               FLOAT_T max_radius) const noexcept {
   return circumsphere().radius() < max_radius && sliverSimplex(rho_bar, tau_bar);
 }
+
+template <unsigned D, unsigned N>
+[[nodiscard]] bool GeometricSimplex<D, N>::operator==(const GeometricSimplex<D, N> &other) const noexcept = default;
+
+template <unsigned D, unsigned N>
+[[nodiscard]] bool GeometricSimplex<D, N>::operator!=(const GeometricSimplex<D, N> &other) const noexcept = default;
 
 template class GeometricSimplex<4>;
 template class GeometricSimplex<4, 4>;

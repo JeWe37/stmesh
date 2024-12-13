@@ -6,14 +6,40 @@
 #include <array>
 #include <cstddef>
 #include <iterator>
+#include <limits>
+#include <ranges>
 #include <set>
 #include <span>
 #include <vector>
 
+#include <Eigen/Core>
+
+#include "stmesh/geometric_simplex.hpp"
+#include "stmesh/mixd.hpp"
+#include "stmesh/sdf.hpp"
+#include "stmesh/sdf_mixins.hpp"
+#include "stmesh/surface_adapters.hpp"
 #include "stmesh/triangulation.hpp"
 #include "stmesh/utility.hpp"
 
 using namespace Catch;
+
+struct DummySDF : public stmesh::DistanceMixin<DummySDF, 4>, public stmesh::CentralDifferenceNormalMixin<DummySDF, 4> {
+  constexpr static double kInf = std::numeric_limits<stmesh::FLOAT_T>::infinity();
+  static constexpr unsigned kDimension = 4;
+
+  [[nodiscard]] static stmesh::FLOAT_T signedDistance(const stmesh::Vector4F &point) noexcept { return 0.5 - point[3]; }
+
+  [[nodiscard]] static Eigen::AlignedBox<stmesh::FLOAT_T, 4> boundingBox() noexcept {
+    return {stmesh::Vector4F{-kInf, -kInf, -kInf, 0.5}, stmesh::Vector4F::Constant(kInf)};
+  }
+};
+
+template <> struct stmesh::ExactSDFTag<DummySDF> {
+  static constexpr bool kValue = false;
+};
+
+static_assert(stmesh::ExactSDF<DummySDF>);
 
 TEST_CASE("Test triangulation store", "[triangulation]") {
   const stmesh::Vector4F min{-stmesh::FLOAT_T(2.0), -stmesh::FLOAT_T(2.0), -stmesh::FLOAT_T(2.0),
@@ -79,6 +105,27 @@ TEST_CASE("Test triangulation store", "[triangulation]") {
 
       for (const auto &full_cell : triangulation)
         REQUIRE(full_cell.data().committed);
+    }
+
+    SECTION("Writable iteration works") {
+      stmesh::SDFSurfaceAdapter<DummySDF> surface_adapter;
+      auto writable_triangulation = triangulation.writableTriangulation(&surface_adapter);
+
+      REQUIRE(writable_triangulation.boundingBox().min() == triangulation.boundingBox().min());
+      REQUIRE(writable_triangulation.boundingBox().max() == triangulation.boundingBox().max());
+
+      auto expected = std::count_if(triangulation.begin(), triangulation.end(), [&](const auto &full_cell) {
+        return surface_adapter.inside(
+            triangulation.fullCellSimplex(stmesh::Triangulation<>::FullCellConstHandle(&full_cell))
+                .circumsphere()
+                .center());
+      });
+      REQUIRE(std::distance(writable_triangulation.begin(), writable_triangulation.end()) == expected);
+
+      for (const auto &cell : writable_triangulation)
+        REQUIRE(surface_adapter.inside(cell.geometricSimplex().circumsphere().center()));
+
+      // TODO: surface side check, not currently feasible
     }
 
     SECTION("Finds correct facet and mirror vertices") {
@@ -174,6 +221,54 @@ TEST_CASE("Test triangulation store", "[triangulation]") {
 
       for (const auto &full_cell : triangulation)
         REQUIRE(full_cell.data().committed);
+    }
+  }
+}
+
+TEST_CASE("Test triangulation from MIXD", "[triangulation]") {
+  std::vector<stmesh::Vector4F> mxyz{
+      {0.0, 0.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}, {0.0, 1.0, 0.0, 0.0},
+      {0.0, 0.0, 1.0, 0.0}, {0.3, 0.3, 0.3, 1.0}, {0.3, 0.3, 0.3, -1.0},
+  };
+  std::vector<std::array<int, 5>> mien{
+      {1, 2, 3, 4, 5},
+      {1, 2, 3, 4, 6},
+  };
+  std::vector<std::array<int, 5>> mrng{
+      {-1, 1, 1, 1, 1},
+      {-1, 1, 1, 1, 1},
+  };
+
+  auto get_cell = [&](size_t i) {
+    Eigen::Matrix<double, 4, 5> simplex;
+    for (size_t j = 0; j < 5; ++j)
+      simplex.col(static_cast<Eigen::Index>(j)) = mxyz[static_cast<size_t>(mien[i].at(j) - 1)];
+    return stmesh::GeometricSimplex<4>(simplex);
+  };
+
+  stmesh::TriangulationFromMixd triangulation("data/sample_mixd/values.minf");
+
+  REQUIRE(triangulation.boundingBox().min() == stmesh::Vector4F{0.0, 0.0, 0.0, -1.0});
+  REQUIRE(triangulation.boundingBox().max() == stmesh::Vector4F{1.0, 1.0, 1.0, 1.0});
+
+  auto it = std::ranges::begin(triangulation);
+  auto first_cell = *it++;
+  auto second_cell = *it++;
+  REQUIRE(it == std::ranges::end(triangulation));
+  REQUIRE(first_cell.geometricSimplex() == get_cell(0));
+  REQUIRE(second_cell.geometricSimplex() == get_cell(1));
+
+  for (size_t j = 0; j < 5; ++j) {
+    if (j == 4) {
+      REQUIRE_FALSE(first_cell.isSurfaceSide(j));
+      REQUIRE_FALSE(second_cell.isSurfaceSide(j));
+    } else {
+      REQUIRE(first_cell.isSurfaceSide(j));
+      REQUIRE(second_cell.isSurfaceSide(j));
+      REQUIRE(triangulation.findBoundaryRegion(first_cell, j) ==
+              static_cast<size_t>(mrng[0].at(stmesh::mixd::kOmitted.at(j))));
+      REQUIRE(triangulation.findBoundaryRegion(second_cell, j) ==
+              static_cast<size_t>(mrng[1].at(stmesh::mixd::kOmitted.at(j))));
     }
   }
 }
