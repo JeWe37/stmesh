@@ -316,6 +316,14 @@ public:
    */
   [[nodiscard]] bool smallSliverSimplex(FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T max_radius) const noexcept;
 
+  /// Transform the simplex
+  /**
+   * Transform the simplex. Each vertex of the simplex is transformed by the transformation matrix.
+   *
+   * @param transformation The transformation to apply to the simplex
+   */
+  void transform(const Eigen::Transform<FLOAT_T, static_cast<int>(D), Eigen::AffineCompact> &transformation) noexcept;
+
   /// Check if two simplices are equal
   /**
    * Check if two simplices are equal. Two simplices are equal if their vertices are equal.

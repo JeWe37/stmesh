@@ -18,12 +18,15 @@
 #include <CLI/CLI.hpp>
 #include <CLI/Option.hpp>
 #include <CLI/Validators.hpp>
+#include <Eigen/Geometry>
 #include <exprtk.hpp>
 #include <fmt/core.h>
 #include <spdlog/cfg/env.h>
 #include <spdlog/spdlog.h>
 
 #include <stmesh/stmesh.hpp>
+
+#include "transform_subcommand.hpp"
 
 // This file will be generated automatically when cur_you run the CMake
 // configuration step. It creates a namespace called `stmesh`. You can modify
@@ -150,6 +153,10 @@ int main(int argc, const char **argv) try {
   app.add_option("--mixd-output", mixd_output_file,
                  "Specify the .minf file to write, other MIXD files will be placed alongside it.");
 
+  Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact> transformation =
+      Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact>::Identity();
+  auto data = addTransformSubcommand(app, transformation);
+
   // NOLINTEND(misc-const-correctness)
   CLI11_PARSE(app, argc, argv);
 
@@ -181,12 +188,13 @@ int main(int argc, const char **argv) try {
     if (vtk_output_dir) {
       spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
       if (use_edt_file_boundary_regions)
-        stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, writable_triangulation, output_scale,
-                         min_time, vtk_output_vtp_format, *edt_reader, vtk_out_coord_format, vtk_output_blocks);
-      else
-        stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, writable_triangulation, output_scale,
-                         min_time, vtk_output_vtp_format, hypercube_boundary_manager, vtk_out_coord_format,
+        stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, writable_triangulation, transformation,
+                         output_scale, min_time, vtk_output_vtp_format, *edt_reader, vtk_out_coord_format,
                          vtk_output_blocks);
+      else
+        stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, writable_triangulation, transformation,
+                         output_scale, min_time, vtk_output_vtp_format, hypercube_boundary_manager,
+                         vtk_out_coord_format, vtk_output_blocks);
     }
     if (mixd_output_file) {
       spdlog::info("Writing MIXD files to {}...", mixd_output_file->string());

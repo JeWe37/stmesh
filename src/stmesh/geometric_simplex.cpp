@@ -327,6 +327,12 @@ template <unsigned D, unsigned N>
 }
 
 template <unsigned D, unsigned N>
+void GeometricSimplex<D, N>::transform(
+    const Eigen::Transform<FLOAT_T, static_cast<int>(D), Eigen::AffineCompact> &transformation) noexcept {
+  vertices_ = transformation * vertices_.colwise().homogeneous();
+}
+
+template <unsigned D, unsigned N>
 [[nodiscard]] bool GeometricSimplex<D, N>::operator==(const GeometricSimplex<D, N> &other) const noexcept = default;
 
 template <unsigned D, unsigned N>

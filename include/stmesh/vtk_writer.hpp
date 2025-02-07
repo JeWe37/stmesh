@@ -69,12 +69,15 @@ void writeRaw(const std::filesystem::path &file, const std::vector<double> &valu
 
 std::pair<std::vector<std::vector<detail::PolyhedraStorage>>, std::vector<detail::PointStorage>>
 computePolyhedra(const std::vector<Eigen::Hyperplane<FLOAT_T, 4>> &planes,
-                 const WritableTriangulation auto &triangulation, FLOAT_T start_time, FLOAT_T dt, size_t n_positions) {
+                 const WritableTriangulation auto &triangulation,
+                 const Eigen::Transform<FLOAT_T, 4, Eigen::AffineCompact> &transformation, FLOAT_T start_time,
+                 FLOAT_T dt, size_t n_positions) {
   std::vector<std::vector<detail::PolyhedraStorage>> polyhedra(n_positions);
   std::vector<detail::PointStorage> points(n_positions);
   size_t full_cell_id = 0;
   for (const auto &cell : triangulation) {
     GeometricSimplex<4> simplex = cell.geometricSimplex();
+    simplex.transform(transformation);
     const auto colwise = simplex.vertices().colwise(); // See https://gitlab.com/libeigen/eigen/-/issues/2882
     const auto [min_time, max_time] =
         std::ranges::minmax_element(colwise, {}, [](const Vector4F &vert) -> FLOAT_T { return vert[3]; });
@@ -96,11 +99,13 @@ computePolyhedra(const std::vector<Eigen::Hyperplane<FLOAT_T, 4>> &planes,
 
 std::pair<std::vector<std::vector<detail::PolyhedraStorage>>, std::vector<detail::PointStorage>> computePolygons(
     const std::vector<Eigen::Hyperplane<FLOAT_T, 4>> &planes, const WritableTriangulation auto &triangulation,
+    const Eigen::Transform<FLOAT_T, 4, Eigen::AffineCompact> &transformation,
     const BoundaryRegionManager auto &boundary_region_manager, FLOAT_T start_time, FLOAT_T dt, size_t n_positions) {
   std::vector<std::vector<detail::PolyhedraStorage>> polygons(n_positions);
   std::vector<detail::PointStorage> points(n_positions);
   for (const auto &cell : triangulation) {
     GeometricSimplex<4> simplex = cell.geometricSimplex();
+    simplex.transform(transformation);
     for (size_t i = 0; i < 5; ++i) {
       if (cell.isSurfaceSide(i)) {
         Eigen::Matrix4<FLOAT_T> face_vertices;
@@ -160,6 +165,7 @@ void writeVTPFile(const std::filesystem::path &directory, const std::string_view
  * be replaced with the time step number.
  * @param dt The time step for the VTK output.
  * @param triangulation The writable triangulation to write to the VTK file.
+ * @param transformation The transformation to apply to the vertices of the mesh. Defaults to the identity matrix.
  * @param scale The scale for the output coord files. Defaults to 1.
  * @param min_time The minimum time of the triangulation for offsetting the output coord files. Defaults to 0.
  * @param vtp_name_format The format string for the VTP file names. This format string should contain a single {} which
@@ -171,17 +177,22 @@ void writeVTPFile(const std::filesystem::path &directory, const std::string_view
  * @param blocks The number of blocks to write the VTK files in. Defaults to 1.
  */
 void writeVTU(const std::filesystem::path &directory, std::string_view name_format, FLOAT_T dt,
-              const WritableTriangulation auto &triangulation, stmesh::FLOAT_T scale = 1, stmesh::FLOAT_T min_time = 0,
-              const std::string_view &vtp_name_format = "",
+              const WritableTriangulation auto &triangulation,
+              const Eigen::Transform<FLOAT_T, 4, Eigen::AffineCompact> &transformation =
+                  Eigen::Transform<FLOAT_T, 4, Eigen::AffineCompact>::Identity(),
+              stmesh::FLOAT_T scale = 1, stmesh::FLOAT_T min_time = 0, const std::string_view &vtp_name_format = "",
               const BoundaryRegionManager auto &boundary_region_manager = {},
               const std::string_view &out_coord_format = "", size_t blocks = 1) {
-  FLOAT_T time_step = triangulation.boundingBox().sizes()[3] / blocks;
+  spdlog::debug("Transforming with matrix:\n{}", transformation.matrix());
+  Eigen::AlignedBox<FLOAT_T, 4> transformed_box(transformation * triangulation.boundingBox().min(),
+                                                transformation * triangulation.boundingBox().max());
+  FLOAT_T time_step = transformed_box.sizes()[3] / static_cast<FLOAT_T>(blocks);
   FLOAT_T dt_per_step = time_step / dt;
   std::vector<std::tuple<size_t, size_t, FLOAT_T>> blocks_info;
   size_t curr_pos = 0;
   FLOAT_T dt_pos = 0;
   for (size_t block = 0; block < blocks; ++block) {
-    FLOAT_T start_time = triangulation.boundingBox().min()[3] + dt * static_cast<FLOAT_T>(curr_pos);
+    FLOAT_T start_time = transformed_box.min()[3] + dt * static_cast<FLOAT_T>(curr_pos);
     dt_pos += dt_per_step;
     auto n_positions = static_cast<size_t>(dt_pos) + 1;
     dt_pos -= static_cast<FLOAT_T>(n_positions);
@@ -197,13 +208,14 @@ void writeVTU(const std::filesystem::path &directory, std::string_view name_form
       planes.emplace_back(Vector4F{0, 0, 0, 1}, -time);
     }
     {
-      const auto [polyhedra, points] = detail::computePolyhedra(planes, triangulation, start_time, dt, n_positions);
+      const auto [polyhedra, points] =
+          detail::computePolyhedra(planes, triangulation, transformation, start_time, dt, n_positions);
       detail::writeVTUFile(directory, name_format, dt, polyhedra, points, out_coord_format, scale, min_time, block_pos,
                            n_positions, start_time);
     }
     if (!vtp_name_format.empty()) {
-      const auto [polygons, points] =
-          detail::computePolygons(planes, triangulation, boundary_region_manager, start_time, dt, n_positions);
+      const auto [polygons, points] = detail::computePolygons(planes, triangulation, transformation,
+                                                              boundary_region_manager, start_time, dt, n_positions);
       detail::writeVTPFile(directory, vtp_name_format, polygons, points, block_pos, n_positions,
                            !std::is_same_v<decltype(boundary_region_manager), NoopBoundaryManager>);
     }
