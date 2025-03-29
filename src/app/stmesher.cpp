@@ -8,8 +8,6 @@
 #include <map>
 #include <memory>
 #include <optional>
-#include <stmesh/lfs_schemes.hpp>
-#include <stmesh/utility.hpp>
 #include <string>
 #include <vector>
 
@@ -35,6 +33,15 @@
 
 enum class RadiusSchemes : uint8_t { kConstant, kImage, kLfs, kBoundary };
 
+void mutuallyExclusiveOptions(const std::vector<CLI::App *> &apps) {
+  for (size_t i = 0; i < apps.size(); ++i) {
+    for (size_t j = i + 1; j < apps.size(); ++j) {
+      if (i != j)
+        apps[i]->excludes(apps[j]);
+    }
+  }
+}
+
 int main(int argc, const char **argv) try {
   spdlog::cfg::load_env_levels();
   // NOLINTNEXTLINE(misc-const-correctness)
@@ -49,7 +56,8 @@ int main(int argc, const char **argv) try {
 
   std::optional<std::filesystem::path> vtk_output_dir;
   CLI::Option *vtk_output_dir_option =
-      app.add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to");
+      app.add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to")
+          ->check(CLI::ExistingDirectory);
 
   std::string vtk_output_name_format;
   app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk output files")
@@ -115,14 +123,19 @@ int main(int argc, const char **argv) try {
 
   std::optional<unsigned> seed;
   app.add_option("--seed", seed, "Seed for random number generation");
-  // NOLINTEND(*-magic-numbers,cppcoreguidelines-init-variables)
+
+  CLI::App *edt_subcommand = app.add_subcommand("edt_geometry", "Use an EDT file for geometry");
+  CLI::App *hypercube_subcommand = app.add_subcommand("hypercube_geometry", "Use hypercube as geometry");
+  CLI::App *hypersphere_subcommand = app.add_subcommand("hypersphere_geometry", "Use hypersphere as geometry");
+  CLI::App *cylinder_subcommand = app.add_subcommand("cylinder_geometry", "Use time-extruded cylinder as geometry");
+
+  mutuallyExclusiveOptions({edt_subcommand, hypercube_subcommand, hypersphere_subcommand, cylinder_subcommand});
 
   std::optional<std::string> edt_file;
-  CLI::Option *edt_file_option = app.add_option("--edt-file", edt_file, "Read an EDT file");
+  edt_subcommand->add_option("--edt-file", edt_file, "Read an EDT file")->required();
 
   bool constant_lfs = true;
-  app.add_flag("!--no-constant-lfs", constant_lfs, "Use a constant local feature size, default true")
-      ->needs(edt_file_option);
+  edt_subcommand->add_flag("!--no-constant-lfs", constant_lfs, "Use a constant local feature size, default true");
 
   stmesh::HypercubeBoundaryManager hypercube_boundary_manager;
   CLI::Option *hypercube_option =
@@ -134,7 +147,6 @@ int main(int argc, const char **argv) try {
                  std::copy_n(arr.begin(), 4, min.data());
                  stmesh::Vector4F max;
                  std::copy_n(arr.begin() + 4, 4, max.data());
-
                  stmesh::HyperCube4 hypercube(min, max);
                  fmt::print("Added hypercube {} with id {}\n", hypercube,
                             static_cast<int>(hypercube_boundary_manager.addBoundaryRegion(hypercube)));
@@ -144,18 +156,46 @@ int main(int argc, const char **argv) try {
           ->take_all();
 
   bool use_edt_file_boundary_regions = false;
-  app.add_flag("--use-edt-file-boundary-regions", use_edt_file_boundary_regions,
-               "Use boundary regions from the EDT file")
-      ->needs(edt_file_option)
+  edt_subcommand
+      ->add_flag("--use-edt-file-boundary-regions", use_edt_file_boundary_regions,
+                 "Use boundary regions from the EDT file")
       ->excludes(hypercube_option);
 
+  std::array<stmesh::FLOAT_T, 4> hypercube_sizes{};
+  hypercube_subcommand->add_option("--hypercube-sizes", hypercube_sizes, "Sizes of the hypercube")->required();
+
+  std::array hypersphere_center{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0),
+                                stmesh::FLOAT_T(30.0)};
+  hypersphere_subcommand->add_option("--hypersphere-center", hypersphere_center, "Center of the hypersphere");
+
+  stmesh::FLOAT_T hypersphere_radius{30.0};
+  hypersphere_subcommand->add_option("--hypersphere-radius", hypersphere_radius, "Radius of the hypersphere");
+
+  stmesh::FLOAT_T cylinder_radius{};
+  cylinder_subcommand->add_option("--cylinder-radius", cylinder_radius, "Radius of the cylinder")->required();
+
+  stmesh::FLOAT_T cylinder_height{};
+  cylinder_subcommand->add_option("--cylinder-height", cylinder_height, "Height of the cylinder")->required();
+
+  stmesh::FLOAT_T time_extrusion{};
+  cylinder_subcommand->add_option("--time-extrusion", time_extrusion, "Time extrusion of the cylinder")->required();
+  // NOLINTEND(*-magic-numbers,cppcoreguidelines-init-variables)
+
   std::optional<std::filesystem::path> mixd_output_file;
-  app.add_option("--mixd-output", mixd_output_file,
-                 "Specify the .minf file to write, other MIXD files will be placed alongside it.");
+  CLI::Option *mixd_output_file_option =
+      app.add_option("--mixd-output", mixd_output_file,
+                     "Specify the .minf file to write, other MIXD files will be placed alongside it.");
+
+  bool ideal_mixd_positions = false;
+  app.add_flag("--ideal-mixd-positions", ideal_mixd_positions, "Write ideal positions to the MIXD file")
+      ->needs(mixd_output_file_option);
 
   Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact> transformation =
       Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact>::Identity();
   auto data = addTransformSubcommand(app, transformation);
+
+  app.set_config("--config")->required(false);
+  app.callback([&]() { spdlog::info("Using config:\n{}", app.config_to_str()); });
 
   // NOLINTEND(misc-const-correctness)
   CLI11_PARSE(app, argc, argv);
@@ -200,10 +240,10 @@ int main(int argc, const char **argv) try {
       spdlog::info("Writing MIXD files to {}...", mixd_output_file->string());
       if (use_edt_file_boundary_regions)
         stmesh::writeMixd(*mixd_output_file, surface_adapter, writable_triangulation, *edt_reader, output_scale,
-                          min_time);
+                          min_time, ideal_mixd_positions);
       else
         stmesh::writeMixd(*mixd_output_file, surface_adapter, writable_triangulation, hypercube_boundary_manager,
-                          output_scale, min_time);
+                          output_scale, min_time, ideal_mixd_positions);
     }
     if (stats_output_file) {
       spdlog::info("Writing statistics to {}...", stats_output_file->string());
@@ -240,7 +280,7 @@ int main(int argc, const char **argv) try {
         return false;
       }
 
-      auto radius_scheme_lambda = [&](const stmesh::FLOAT_T &val) {
+      auto radius_scheme_lambda = [&](stmesh::FLOAT_T val) {
         d = val;
         return expression.value();
       };
@@ -262,10 +302,12 @@ int main(int argc, const char **argv) try {
     return true;
   };
 
-  if (edt_file) {
+  if (app.got_subcommand(edt_subcommand)) {
+    // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
     spdlog::info("Reading EDT file {}...", *edt_file);
     if (constant_lfs) {
       spdlog::debug("Using constant LFS");
+      // NOLINTNEXTLINE(bugprone-unchecked-optional-access)
       const auto edt_reader = std::make_shared<stmesh::EDTReader<4>>(*edt_file);
       const stmesh::EDTSurfaceAdapter adapter(edt_reader);
       spdlog::info("EDT file read successfully! Bounding box: min=({}), max=({})",
@@ -281,10 +323,27 @@ int main(int argc, const char **argv) try {
       if (!invoke_scheme(adapter, stmesh::lfs_schemes::BinaryImageApproximation(delta, edt_reader), edt_reader))
         return EXIT_FAILURE;
     }
+  } else if (app.got_subcommand(hypercube_subcommand)) {
+    spdlog::debug("Meshing hypercube geometry");
+    const stmesh::SDFSurfaceAdapter<stmesh::HyperCube4> sdf_surface_adapter(
+        stmesh::Vector4F::Zero(), Eigen::Map<stmesh::Vector4F>(hypercube_sizes.data()));
+    spdlog::debug("Using constant LFS");
+    if (!invoke_scheme(sdf_surface_adapter, stmesh::lfs_schemes::Constant(delta)))
+      return EXIT_FAILURE;
+  } else if (app.got_subcommand(cylinder_subcommand)) {
+    spdlog::debug("Meshing extruded cylinder geometry");
+    stmesh::CylinderSDF cylinder_sdf(cylinder_radius,
+                                     {stmesh::Vector3F::Zero(), stmesh::Vector3F::UnitX() * cylinder_height});
+    const stmesh::SDFSurfaceAdapter<stmesh::ExtrudedSDF<stmesh::CylinderSDF>> sdf_surface_adapter(
+        cylinder_sdf, Eigen::ParametrizedLine<stmesh::FLOAT_T, 4>{stmesh::Vector4F::Zero(),
+                                                                  stmesh::Vector4F::UnitW() * time_extrusion});
+    spdlog::debug("Using constant LFS");
+    if (!invoke_scheme(sdf_surface_adapter, stmesh::lfs_schemes::Constant(delta)))
+      return EXIT_FAILURE;
   } else {
+    spdlog::debug("Meshing hypersphere geometry");
     const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
-        stmesh::FLOAT_T(30.0),
-        stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(30.0)});
+        hypersphere_radius, Eigen::Map<stmesh::Vector4F>(hypersphere_center.data()));
     spdlog::debug("Using constant LFS");
     if (!invoke_scheme(sdf_surface_adapter, stmesh::lfs_schemes::Constant(delta)))
       return EXIT_FAILURE;
