@@ -1,9 +1,13 @@
 #include "stmesh/geometric_simplex.hpp"
 
+#include <Eigen/src/Core/Matrix.h>
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
+#include <iterator>
+#include <numeric>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -13,6 +17,7 @@
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/Polyhedron_incremental_builder_3.h>
 #include <CGAL/convex_hull_3.h>
+#include <CGAL/number_utils.h>
 #include <Eigen/Core>
 
 #include "stmesh/sdf.hpp"
@@ -330,6 +335,17 @@ template <unsigned D, unsigned N>
 void GeometricSimplex<D, N>::transform(
     const Eigen::Transform<FLOAT_T, static_cast<int>(D), Eigen::AffineCompact> &transformation) noexcept {
   vertices_ = transformation * vertices_.colwise().homogeneous();
+}
+
+template <unsigned D, unsigned N>
+VectorF<N> GeometricSimplex<D, N>::barycentricCoordinates(const VectorF<D> &point) const noexcept
+requires(D + 1 == N)
+{
+  VectorF<N> result;
+  result.template head<D>() =
+      (vertices_.template leftCols<D>().colwise() - vertices_.col(D)).inverse() * (point - vertices_.col(D));
+  result[D] = 1.0 - result.template head<D>().sum();
+  return result;
 }
 
 template <unsigned D, unsigned N>

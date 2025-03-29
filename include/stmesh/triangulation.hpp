@@ -8,6 +8,7 @@
 #include <optional>
 #include <ranges>
 #include <tuple>
+#include <type_traits>
 #include <unordered_map>
 #include <variant>
 #include <vector>
@@ -30,47 +31,72 @@
 #include <boost/iterator/iterator_facade.hpp>
 
 #include "boundary_region_manager.hpp"
+#include "edt.hpp"
 #include "geometric_simplex.hpp"
-#include "stmesh/edt.hpp"
+#include "geometry_helpers.hpp"
+#include "problem_types.hpp"
 #include "surface_adapters.hpp"
 #include "utility.hpp"
 #include "writable_triangulation.hpp"
 
 namespace stmesh {
+template <typename MixdCell> class TriangulationFromMixdGeneric;
+class TriangulationFromMixdWithData;
+
+namespace detail {
+class MixdDataCell;
+
+template <typename Cell = std::monostate> class MixdCell {
+  using CellType = std::conditional_t<std::is_same_v<Cell, std::monostate>, MixdCell, Cell>;
+
+protected:
+  const TriangulationFromMixdGeneric<CellType> *triangulation_;
+  size_t index_;
+
+  friend TriangulationFromMixdGeneric<CellType>;
+
+public:
+  MixdCell(const TriangulationFromMixdGeneric<CellType> *triangulation, size_t index);
+
+  [[nodiscard]] GeometricSimplex<4> geometricSimplex() const noexcept;
+
+  [[nodiscard]] bool isSurfaceSide(size_t i) const noexcept;
+};
+
+class MixdDataCell : public MixdCell<MixdDataCell> {
+  friend class TriangulationFromMixdWithData;
+
+public:
+  using MixdCell::MixdCell;
+
+  [[nodiscard]] Eigen::Matrix<FLOAT_T, Eigen::Dynamic, 5> data() const noexcept;
+};
+} // namespace detail
+
 /// Triangulation created by loading a set of mixd files
 /**
  * Triangulation created by loading a set of mixd files. This class represents a triangulation created by loading a
  * the files specified in the minf file. It can act as a WritableTriangulation and BoundaryRegionManager.
  */
-class TriangulationFromMixd {
+template <typename MixdCell = detail::MixdCell<>> class TriangulationFromMixdGeneric {
+protected:
   std::vector<Vector4F> mxyz_;
   std::vector<std::array<int, 5>> mien_;
   std::vector<std::array<int, 5>> mrng_;
 
-  class MixdCell {
-    const TriangulationFromMixd *triangulation_;
-    size_t index_;
-
-    friend class TriangulationFromMixd;
-
-  public:
-    MixdCell(const TriangulationFromMixd *triangulation, size_t index);
-
-    [[nodiscard]] GeometricSimplex<4> geometricSimplex() const noexcept;
-
-    [[nodiscard]] bool isSurfaceSide(size_t i) const noexcept;
-  };
+  friend MixdCell;
+  friend class detail::MixdCell<detail::MixdDataCell>;
 
 public:
   /// An iterator for the elements in the file.
   /**
    * An iterator for the elements in the file. This class is an iterator for the elements in the file, and is used to
-   * iterate over this class, returning WritableCell objects.
+   * iterate over this class, returning WritableCell objects. Usable as a random access iterator.
    */
   // NOLINTNEXTLINE(readability-identifier-naming)
   class iterator : public boost::iterator_adaptor<iterator, std::vector<std::array<int, 5>>::const_iterator, MixdCell,
-                                                  std::forward_iterator_tag, MixdCell> {
-    const TriangulationFromMixd *triangulation_;
+                                                  std::random_access_iterator_tag, MixdCell> {
+    const TriangulationFromMixdGeneric *triangulation_;
 
     friend class boost::iterator_core_access;
 
@@ -85,7 +111,8 @@ public:
      * @param triangulation The triangulation to create the iterator for
      * @param it The iterator to create the iterator for
      */
-    iterator(const TriangulationFromMixd *triangulation, const std::vector<std::array<int, 5>>::const_iterator &it);
+    iterator(const TriangulationFromMixdGeneric *triangulation,
+             const std::vector<std::array<int, 5>>::const_iterator &it);
 
     /// A default constructor
     /**
@@ -102,7 +129,7 @@ public:
    *
    * @param minf_file The path to the minf file
    */
-  explicit TriangulationFromMixd(const std::filesystem::path &minf_file);
+  explicit TriangulationFromMixdGeneric(const std::filesystem::path &minf_file);
 
   /// Gets the bounding box of the triangulation
   /**
@@ -143,8 +170,42 @@ public:
   [[nodiscard]] size_t findBoundaryRegion(const MixdCell &cell, size_t j) const noexcept;
 };
 
+using TriangulationFromMixd = TriangulationFromMixdGeneric<>; ///< Standard TriangulationFromMixd
+
 static_assert(WritableTriangulation<TriangulationFromMixd>);
 static_assert(BoundaryRegionManager<TriangulationFromMixd>);
+
+/// Triangulation created by loading a set of mixd files with additional data
+/**
+ * Triangulation created by loading a set of mixd files with additional data. This class represents a triangulation
+ * created by loading a the files specified in the minf file, along with additional data from a data file, which can be
+ * accessed through the data() method on its cells. It can act as a WritableTriangulation and BoundaryRegionManager.
+ * Usable as a random access iterator.
+ */
+class TriangulationFromMixdWithData : public TriangulationFromMixdGeneric<detail::MixdDataCell> {
+  std::vector<std::vector<FLOAT_T>> data_;
+
+  friend class detail::MixdDataCell;
+
+public:
+  ProblemType problem_type_; ///< The problem type of the triangulation
+
+  /// A constructor from a minf file path and a data file path
+  /**
+   * A constructor from a minf file path and a data file path. This constructor creates a triangulation from a minf
+   * file path and a data file path. The minf file is read and the vertices, elements, and boundary regions are loaded
+   * into the triangulation. The data file directly is read and the data is loaded into the triangulation.
+   *
+   * @param minf_file The path to the minf file
+   * @param problem_type The problem type data to read
+   * @param data_file The path to the data file
+   */
+  TriangulationFromMixdWithData(const std::filesystem::path &minf_file, const ProblemType &problem_type,
+                                const std::filesystem::path &data_file);
+};
+
+static_assert(WritableTriangulation<TriangulationFromMixdWithData>);
+static_assert(BoundaryRegionManager<TriangulationFromMixdWithData>);
 
 namespace detail {
 template <typename ExtraData, SurfaceAdapter4 Surface> class WritableMainTriangulation;
@@ -198,9 +259,6 @@ public:
   using Face = DelaunayTriangulation::Face;              ///< A face of the triangulation
   using LocateType = DelaunayTriangulation::Locate_type; ///< The result of a locate operation
 
-  using BGPoint = bg::model::point<FLOAT_T, 4, bg::cs::cartesian>; ///< A boost::geometry point in 4D
-  using BGBox = bg::model::box<BGPoint>;                           ///< A boost::geometry box in 4D
-
   using iterator = DelaunayTriangulation::Finite_full_cell_iterator; ///< An iterator for the finite full cells
   using const_iterator =
       DelaunayTriangulation::Finite_full_cell_const_iterator; ///< A const iterator for the finite full cells
@@ -217,36 +275,6 @@ private:
   std::unordered_map<Vector4F, VertexHandle, Vector4FHash> vertex_handle_map_;
 
 public:
-  /// Converts an Eigen vector to a boost::geometry point
-  /**
-   * Converts an Eigen vector to a boost::geometry point. This function is used to convert Eigen vectors to
-   * boost::geometry points, which can be used to query the rtree.
-   *
-   * @param vector The vector to convert
-   * @return The point
-   */
-  [[nodiscard]] static BGPoint pointFromVector(const Vector4F &vector) noexcept;
-
-  /// Converts a boost::geometry point to an Eigen vector
-  /**
-   * Converts a boost::geometry point to an Eigen vector. Useful for converting points from the rtree to Eigen
-   * vectors.
-   *
-   * @param point The point to convert
-   * @return The vector
-   */
-  [[nodiscard]] static Vector4F vectorFromPoint(const BGPoint &point) noexcept;
-
-  /// Converts an Eigen aligned box to a boost::geometry box
-  /**
-   * Converts an Eigen aligned box to a boost::geometry box. Useful for converting bounding boxes to boost::geometry
-   * boxes, which can be inserted into the rtree.
-   *
-   * @param aabb The aligned box to convert
-   * @return The box
-   */
-  [[nodiscard]] static BGBox boxFromAABB(const Eigen::AlignedBox<FLOAT_T, 4> &aabb) noexcept;
-
   /// Converts a CGAL point to an Eigen vector
   /**
    * Converts a CGAL point to an Eigen vector. Useful for converting points from the triangulation to Eigen vectors.

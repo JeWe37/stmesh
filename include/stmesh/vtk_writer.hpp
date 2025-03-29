@@ -19,8 +19,9 @@
 
 #include "boundary_region_manager.hpp" // IWYU pragma: keep
 #include "geometric_simplex.hpp"
-#include "stmesh/writable_triangulation.hpp"
+#include "mesh_project.hpp"
 #include "surface_adapters.hpp" // IWYU pragma: keep
+#include "triangulation.hpp"
 #include "utility.hpp"
 #include "writable_triangulation.hpp"
 
@@ -40,9 +41,10 @@ class PointStorage {
                            bool write_boundary_ids);
   friend void writeVTUFile(const std::filesystem::path &directory, const std::string_view &name_format, FLOAT_T dt,
                            const std::vector<std::vector<PolyhedraStorage>> &polyhedra,
-                           const std::vector<PointStorage> &points, const std::string_view &out_coord_format,
-                           stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time, size_t block_pos, size_t n_positions,
-                           FLOAT_T start_time);
+                           const std::vector<PointStorage> &points,
+                           const Eigen::Transform<FLOAT_T, 4, Eigen::AffineCompact> &transformation,
+                           const std::string_view &out_coord_format, stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time,
+                           size_t block_pos, size_t n_positions, FLOAT_T start_time, MeshProjector *projector);
 
 public:
   PointStorage();
@@ -134,15 +136,58 @@ std::pair<std::vector<std::vector<detail::PolyhedraStorage>>, std::vector<detail
 
 void writeVTUFile(const std::filesystem::path &directory, const std::string_view &name_format, FLOAT_T dt,
                   const std::vector<std::vector<detail::PolyhedraStorage>> &polyhedra,
-                  const std::vector<detail::PointStorage> &points, const std::string_view &out_coord_format,
-                  stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time, size_t block_pos, size_t n_positions,
-                  FLOAT_T start_time);
+                  const std::vector<detail::PointStorage> &points,
+                  const Eigen::Transform<FLOAT_T, 4, Eigen::AffineCompact> &transformation,
+                  const std::string_view &out_coord_format, stmesh::FLOAT_T scale, stmesh::FLOAT_T min_time,
+                  size_t block_pos, size_t n_positions, FLOAT_T start_time, MeshProjector *projector);
 
 void writeVTPFile(const std::filesystem::path &directory, const std::string_view &name_format,
                   const std::vector<std::vector<detail::PolyhedraStorage>> &polygons,
                   const std::vector<detail::PointStorage> &points, size_t block_pos, size_t n_positions,
                   bool write_boundary_ids);
 } // namespace detail
+
+/// Add data to existing VTU files with precomputed coordinates
+/**
+ * Adds data to existing VTU files. The data is obtained by projecting the mesh data onto the points of the VTU files.
+ * For determining the real positions of the points, the coordinates file is used.
+ *
+ * @param directory The directory containing the existing VTU files.
+ * @param name_format The format string for the existing VTU file names. This format string should contain a single {}
+ * which will be replaced with the time step number.
+ * @param out_name_format The format string for the new VTU file names. This format string should contain a single {}
+ * which will be replaced with the time step number.
+ * @param steps The number of steps of the mesh.
+ * @param triangulation The triangulation with data to use for the projector.
+ * @param out_coord_format The format string for the coordinates file name. This format string should contain a single
+ * {} which will be replaced with the time step number.
+ */
+void addVTUData(const std::filesystem::path &directory, std::string_view name_format, std::string_view out_name_format,
+                size_t steps, const TriangulationFromMixdWithData &triangulation,
+                const std::string_view &out_coord_format);
+
+/// Add data to existing VTU files without precomputed coordinates
+/**
+ * Adds data to existing VTU files. The data is obtained by projecting the mesh data onto the points of the VTU files.
+ * For determining the real positions of the points, they are computed based on the time step, transformation, scale,
+ * and minimum time.
+ *
+ * @param directory The directory containing the existing VTU files.
+ * @param name_format The format string for the existing VTU file names. This format string should contain a single {}
+ * which will be replaced with the time step number.
+ * @param out_name_format The format string for the new VTU file names. This format string should contain a single {}
+ * which will be replaced with the time step number.
+ * @param dt The time step for the VTU output.
+ * @param triangulation The triangulation with data to use for the projector.
+ * @param transformation The transformation to apply to the vertices of the mesh. Defaults to the identity matrix.
+ * @param scale The scale for the output coord files. Defaults to 1.
+ * @param min_time The minimum time of the triangulation for offsetting the output coord files. Defaults to 0.
+ */
+void addVTUData(const std::filesystem::path &directory, std::string_view name_format, std::string_view out_name_format,
+                FLOAT_T dt, const TriangulationFromMixdWithData &triangulation,
+                const Eigen::Transform<FLOAT_T, 4, Eigen::AffineCompact> &transformation =
+                    Eigen::Transform<FLOAT_T, 4, Eigen::AffineCompact>::Identity(),
+                stmesh::FLOAT_T scale = 1, stmesh::FLOAT_T min_time = 0);
 
 /// Write a VTK file from a triangulation
 /**
@@ -159,6 +204,8 @@ void writeVTPFile(const std::filesystem::path &directory, const std::string_view
  * computation time.
  * Additionally, a VTP file can be written. This file contains the boundary of the mesh. This is useful for visualizing
  * the boundary regions in ParaView. Boundary regions are determined by the boundary_region_manager.
+ * If the triangulation is a TriangulationFromMixdWithData, the mesh_projector is used to project the data onto the
+ * points of the VTK file, which is then written to the VTK file.
  *
  * @param directory The directory to write the VTK files to.
  * @param name_format The format string for the VTK file names. This format string should contain a single {} which will
@@ -210,8 +257,13 @@ void writeVTU(const std::filesystem::path &directory, std::string_view name_form
     {
       const auto [polyhedra, points] =
           detail::computePolyhedra(planes, triangulation, transformation, start_time, dt, n_positions);
-      detail::writeVTUFile(directory, name_format, dt, polyhedra, points, out_coord_format, scale, min_time, block_pos,
-                           n_positions, start_time);
+      if constexpr (std::is_same_v<std::decay_t<decltype(triangulation)>, TriangulationFromMixdWithData>) {
+        MeshProjector projector(&triangulation);
+        detail::writeVTUFile(directory, name_format, dt, polyhedra, points, transformation, out_coord_format, scale,
+                             min_time, block_pos, n_positions, start_time, &projector);
+      } else
+        detail::writeVTUFile(directory, name_format, dt, polyhedra, points, transformation, out_coord_format, scale,
+                             min_time, block_pos, n_positions, start_time, nullptr);
     }
     if (!vtp_name_format.empty()) {
       const auto [polygons, points] = detail::computePolygons(planes, triangulation, transformation,

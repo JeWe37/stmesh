@@ -324,6 +324,17 @@ public:
    */
   void transform(const Eigen::Transform<FLOAT_T, static_cast<int>(D), Eigen::AffineCompact> &transformation) noexcept;
 
+  /// Get barycentric coordinates of a point
+  /**
+   * Get barycentric coordinates of a point. The barycentric coordinates are the weights of the vertices that sum to 1.
+   * Only available for simplices with same dimension as space.
+   *
+   * @param point The point to get the barycentric coordinates of
+   * @return The barycentric coordinates of the point
+   */
+  [[nodiscard]] VectorF<N> barycentricCoordinates(const VectorF<D> &point) const noexcept
+  requires(D + 1 == N);
+
   /// Check if two simplices are equal
   /**
    * Check if two simplices are equal. Two simplices are equal if their vertices are equal.

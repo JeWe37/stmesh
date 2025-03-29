@@ -1,3 +1,4 @@
+#include <catch2/catch_template_test_macros.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_vector.hpp>
@@ -16,6 +17,7 @@
 
 #include "stmesh/geometric_simplex.hpp"
 #include "stmesh/mixd.hpp"
+#include "stmesh/problem_types.hpp"
 #include "stmesh/sdf.hpp"
 #include "stmesh/sdf_mixins.hpp"
 #include "stmesh/surface_adapters.hpp"
@@ -225,7 +227,8 @@ TEST_CASE("Test triangulation store", "[triangulation]") {
   }
 }
 
-TEST_CASE("Test triangulation from MIXD", "[triangulation]") {
+TEMPLATE_TEST_CASE("Test triangulation from MIXD", "[triangulation]", stmesh::TriangulationFromMixd,
+                   stmesh::TriangulationFromMixdWithData) {
   std::vector<stmesh::Vector4F> mxyz{
       {0.0, 0.0, 0.0, 0.0}, {1.0, 0.0, 0.0, 0.0}, {0.0, 1.0, 0.0, 0.0},
       {0.0, 0.0, 1.0, 0.0}, {0.3, 0.3, 0.3, 1.0}, {0.3, 0.3, 0.3, -1.0},
@@ -246,7 +249,12 @@ TEST_CASE("Test triangulation from MIXD", "[triangulation]") {
     return stmesh::GeometricSimplex<4>(simplex);
   };
 
-  stmesh::TriangulationFromMixd triangulation("data/sample_mixd/values.minf");
+  TestType triangulation = [] {
+    if constexpr (std::is_same_v<TestType, stmesh::TriangulationFromMixdWithData>)
+      return TestType("data/sample_mixd/values.minf", stmesh::kINSProblem, "data/sample_mixd/values.mxyz");
+    else
+      return TestType("data/sample_mixd/values.minf");
+  }();
 
   REQUIRE(triangulation.boundingBox().min() == stmesh::Vector4F{0.0, 0.0, 0.0, -1.0});
   REQUIRE(triangulation.boundingBox().max() == stmesh::Vector4F{1.0, 1.0, 1.0, 1.0});
@@ -257,6 +265,10 @@ TEST_CASE("Test triangulation from MIXD", "[triangulation]") {
   REQUIRE(it == std::ranges::end(triangulation));
   REQUIRE(first_cell.geometricSimplex() == get_cell(0));
   REQUIRE(second_cell.geometricSimplex() == get_cell(1));
+  if constexpr (std::is_same_v<TestType, stmesh::TriangulationFromMixdWithData>) {
+    REQUIRE(first_cell.geometricSimplex() == stmesh::GeometricSimplex<4>(first_cell.data()));
+    REQUIRE(second_cell.geometricSimplex() == stmesh::GeometricSimplex<4>(second_cell.data()));
+  }
 
   for (size_t j = 0; j < 5; ++j) {
     if (j == 4) {

@@ -16,6 +16,8 @@ add_library(stmesh
   bitset.cpp
   lfs_schemes.cpp
   radius_schemes.cpp
+  mesh_project.cpp
+  geometry_helpers.cpp
   ${CMAKE_BINARY_DIR}/src/generator/table.cpp
 )
 

@@ -106,6 +106,27 @@ std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file) {
   throw std::runtime_error("Unexpected end of file");
 }
 
+std::vector<std::vector<FLOAT_T>> readData(const std::filesystem::path &data_file, size_t n) {
+  std::ifstream in(data_file, std::ios::binary);
+  std::vector<std::vector<FLOAT_T>> vertices;
+  while (in) {
+    std::vector<FLOAT_T> &vertex = vertices.emplace_back(n);
+    for (size_t i = 0; i < n; ++i) {
+      std::array<char, sizeof(FLOAT_T)> coordinate_bytes{};
+      in.read(coordinate_bytes.data(), sizeof(FLOAT_T));
+      if (in.gcount() == 0 && in.eof() && i == 0)
+        return vertices;
+      if (in.gcount() != sizeof(FLOAT_T))
+        throw std::runtime_error("Unexpected end of file");
+
+      if constexpr (std::endian::native != std::endian::big)
+        std::ranges::reverse(coordinate_bytes);
+      vertex.at(i) = std::bit_cast<FLOAT_T>(coordinate_bytes);
+    }
+  }
+  throw std::runtime_error("Unexpected end of file");
+}
+
 std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file) {
   std::ifstream in(file, std::ios::binary);
   std::vector<std::array<int, 5>> full_cell_vertex_ids;

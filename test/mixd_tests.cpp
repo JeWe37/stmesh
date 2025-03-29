@@ -4,6 +4,7 @@
 #include <catch2/matchers/catch_matchers_vector.hpp>
 
 #include <array>
+#include <cstddef>
 #include <filesystem>
 #include <vector>
 
@@ -39,6 +40,10 @@ TEST_CASE("Read-write test", "[mixd]") {
   REQUIRE_THAT(stmesh::mixd::readMxyz(base_dir / "values.mxyz"), Catch::Matchers::Equals(mxyz));
   REQUIRE_THAT(stmesh::mixd::readIntMixd(base_dir / "values.mien"), Catch::Matchers::Equals(mien));
   REQUIRE_THAT(stmesh::mixd::readIntMixd(base_dir / "values.mrng"), Catch::Matchers::Equals(mrng));
+
+  std::vector<std::vector<stmesh::FLOAT_T>> data = stmesh::mixd::readData(base_dir / "values.mxyz", 4);
+  for (size_t i = 0; i < mxyz.size(); ++i)
+    REQUIRE(Eigen::Map<stmesh::Vector4F>(data[i].data()) == mxyz[i]);
 
   auto [mxyz_file, mien_file, mrng_file] = stmesh::mixd::readMinf(minf_path);
   REQUIRE(mxyz_file == base_dir / "values.mxyz");

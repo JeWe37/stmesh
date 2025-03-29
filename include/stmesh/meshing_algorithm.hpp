@@ -24,6 +24,7 @@
 #include <spdlog/spdlog.h>
 
 #include "geometric_simplex.hpp"
+#include "geometry_helpers.hpp"
 #include "lfs_schemes.hpp" // IWYU pragma: keep
 #include "meshing_cell.hpp"
 #include "radius_schemes.hpp" // IWYU pragma: keep
@@ -66,9 +67,7 @@ class MeshingAlgorithm {
   RadiusScheme radius_scheme_;
   Random gen_;
 
-  using Point = detail::Triangulation::BGPoint;
-  using Box = detail::Triangulation::BGBox;
-  using Tree = bg::index::rtree<std::tuple<Box, typename detail::Triangulation::FullCellHandle, HyperSphere4>,
+  using Tree = bg::index::rtree<std::tuple<BGBox, typename detail::Triangulation::FullCellHandle, HyperSphere4>,
                                 // NOLINTNEXTLINE(*-magic-numbers)
                                 bg::index::rstar<16>>;
 
@@ -171,9 +170,9 @@ public:
   void addPointDependency(const HyperSphere4 &sphere, const typename detail::Triangulation::FullCellHandle dependency,
                           bool on_insert = true) {
     if (on_insert)
-      tree_insertion_.insert({detail::Triangulation::boxFromAABB(sphere.boundingBox()), dependency, sphere});
+      tree_insertion_.insert({boxFromAABB(sphere.boundingBox()), dependency, sphere});
     else
-      tree_removal_.insert({detail::Triangulation::boxFromAABB(sphere.boundingBox()), dependency, sphere});
+      tree_removal_.insert({boxFromAABB(sphere.boundingBox()), dependency, sphere});
   }
 
   /// Remove a dependency between a full cell and a region
@@ -190,9 +189,9 @@ public:
   void removePointDependency(const HyperSphere4 &sphere,
                              const typename detail::Triangulation::FullCellHandle dependency, bool on_insert = true) {
     if (on_insert)
-      tree_insertion_.remove({detail::Triangulation::boxFromAABB(sphere.boundingBox()), dependency, sphere});
+      tree_insertion_.remove({boxFromAABB(sphere.boundingBox()), dependency, sphere});
     else
-      tree_removal_.remove({detail::Triangulation::boxFromAABB(sphere.boundingBox()), dependency, sphere});
+      tree_removal_.remove({boxFromAABB(sphere.boundingBox()), dependency, sphere});
   }
 
   /// Get the full cells that are sensitive to a point
@@ -206,7 +205,7 @@ public:
    */
   [[nodiscard]] std::vector<detail::Triangulation::FullCellHandle> potentialsInRadius(const Vector4F &point,
                                                                                       bool on_insert = true) const {
-    Point p = detail::Triangulation::pointFromVector(point);
+    BGPoint p = pointFromVector(point);
     auto query = bg::index::covers(p) &&
                  bg::index::satisfies([&](const auto &value) { return std::get<2>(value).signedDistance(point) < 0; });
     std::vector<detail::Triangulation::FullCellHandle> full_cells;

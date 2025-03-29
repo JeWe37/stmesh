@@ -3,6 +3,7 @@
 #include <exception>
 #include <filesystem>
 #include <optional>
+#include <stmesh/problem_types.hpp>
 #include <string>
 
 #include <CLI/App.hpp>
@@ -35,7 +36,8 @@ int main(int argc, const char **argv) try {
 
   std::optional<std::filesystem::path> vtk_output_dir;
   CLI::Option *vtk_output_dir_option =
-      app.add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to");
+      app.add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to")
+          ->check(CLI::ExistingDirectory);
 
   std::string vtk_output_name_format;
   app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk output files")
@@ -67,12 +69,24 @@ int main(int argc, const char **argv) try {
   app.add_option("--output-scale", output_scale, "Scale factor for output")->default_val(stmesh::FLOAT_T(1.0));
   // NOLINTEND(*-magic-numbers,cppcoreguidelines-init-variables)
 
+  std::optional<std::string> data_file;
+  CLI::Option *data_file_option = app.add_option("--data-file", data_file, "The name of the data file to read");
+
+  std::string problem_type_str;
+  data_file_option->needs(
+      app.add_option("--problem-type", problem_type_str, "The problem type to use for the data file")
+          ->check(CLI::IsMember(stmesh::kNameMap))
+          ->needs(data_file_option));
+
   std::string mixd_file_name;
   app.add_option("mixd_file_name", mixd_file_name, "The name of the MIXD file to read")->required();
 
   Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact> transformation =
       Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact>::Identity();
   auto data = addTransformSubcommand(app, transformation);
+
+  app.set_config("--config")->required(false);
+  app.callback([&]() { spdlog::info("Using config:\n{}", app.config_to_str()); });
 
   // NOLINTEND(misc-const-correctness)
   CLI11_PARSE(app, argc, argv);
@@ -82,18 +96,28 @@ int main(int argc, const char **argv) try {
     return EXIT_SUCCESS;
   }
 
-  stmesh::TriangulationFromMixd triangulation_from_mixd(mixd_file_name);
+  auto output = [&](const auto &triangulation_from_mixd) {
+    if (vtk_output_dir) {
+      spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
+      const stmesh::FLOAT_T min_time = triangulation_from_mixd.boundingBox().min()[3];
+      stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, triangulation_from_mixd, transformation,
+                       output_scale, min_time, vtk_output_vtp_format, triangulation_from_mixd, vtk_out_coord_format,
+                       vtk_output_blocks);
+    }
+    if (stats_output_file) {
+      spdlog::info("Writing statistics to {}...", stats_output_file->string());
+      stmesh::writeStatistics(*stats_output_file, triangulation_from_mixd);
+    }
+  };
 
-  if (vtk_output_dir) {
-    spdlog::info("Writing vtk files to {}...", vtk_output_dir->string());
-    const stmesh::FLOAT_T min_time = triangulation_from_mixd.boundingBox().min()[3];
-    stmesh::writeVTU(*vtk_output_dir, vtk_output_name_format, vtk_output_dt, triangulation_from_mixd, transformation,
-                     output_scale, min_time, vtk_output_vtp_format, triangulation_from_mixd, vtk_out_coord_format,
-                     vtk_output_blocks);
-  }
-  if (stats_output_file) {
-    spdlog::info("Writing statistics to {}...", stats_output_file->string());
-    stmesh::writeStatistics(*stats_output_file, triangulation_from_mixd);
+  if (data_file) {
+    spdlog::info("Adding data from {}...", *data_file);
+    const stmesh::TriangulationFromMixdWithData triangulation_from_mixd(
+        mixd_file_name, stmesh::kNameMap.at(problem_type_str), *data_file);
+    output(triangulation_from_mixd);
+  } else {
+    const stmesh::TriangulationFromMixd triangulation_from_mixd(mixd_file_name);
+    output(triangulation_from_mixd);
   }
 
   spdlog::info("Done!");

@@ -92,6 +92,17 @@ std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file);
  */
 std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file);
 
+/// Reads an arbitrary mixd data file
+/**
+ * Reads an arbitrary mixd data file. This function reads an arbitrary mixd data file, in big-endian double format.
+ * This may be used for reading output files from XNS.
+ *
+ * @param data_file The path to the data file to read
+ * @param n The number of values per node
+ * @return The data read from the file
+ */
+std::vector<std::vector<FLOAT_T>> readData(const std::filesystem::path &data_file, size_t n);
+
 /// Output struct for readMinf
 /**
  * Contains the paths to the mxyz, mien, and mrng files.

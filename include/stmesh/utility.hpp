@@ -13,8 +13,6 @@
 
 #include <internal_use_only/config.hpp>
 
-namespace boost::geometry {}
-
 namespace stmesh {
 using FLOAT_T = stmesh::cmake::FLOATING_POINT_TYPE; ///< The floating point type used in the library
 template <unsigned D>
@@ -26,9 +24,6 @@ template <unsigned D>
 using ArrayF = Eigen::Array<FLOAT_T, static_cast<int>(D), 1>; ///< An array of dimension D of FLOAT_T
 using Array4F = ArrayF<static_cast<unsigned>(4)>;             ///< An array of dimension 4 of FLOAT_T
 using Array3F = ArrayF<static_cast<unsigned>(3)>;             ///< An array of dimension 3 of FLOAT_T
-
-// NOLINTNEXTLINE(misc-unused-alias-decls)
-namespace bg = boost::geometry; ///< Alias for boost::geometry
 
 /// A hash function for Eigen::Matrix
 /**
