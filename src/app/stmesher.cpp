@@ -190,6 +190,12 @@ int main(int argc, const char **argv) try {
   app.add_flag("--ideal-mixd-positions", ideal_mixd_positions, "Write ideal positions to the MIXD file")
       ->needs(mixd_output_file_option);
 
+  bool compute_dual = false;
+  app.add_flag("--compute-dual", compute_dual, "Include the dual in the mrng file")->needs(mixd_output_file_option);
+
+  bool write_neim = false;
+  app.add_flag("--write-neim", write_neim, "Write the node element index mapping")->needs(mixd_output_file_option);
+
   Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact> transformation =
       Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact>::Identity();
   auto data = addTransformSubcommand(app, transformation);
@@ -240,10 +246,10 @@ int main(int argc, const char **argv) try {
       spdlog::info("Writing MIXD files to {}...", mixd_output_file->string());
       if (use_edt_file_boundary_regions)
         stmesh::writeMixd(*mixd_output_file, surface_adapter, writable_triangulation, *edt_reader, output_scale,
-                          min_time, ideal_mixd_positions);
+                          min_time, ideal_mixd_positions, write_neim, compute_dual);
       else
         stmesh::writeMixd(*mixd_output_file, surface_adapter, writable_triangulation, hypercube_boundary_manager,
-                          output_scale, min_time, ideal_mixd_positions);
+                          output_scale, min_time, ideal_mixd_positions, write_neim, compute_dual);
     }
     if (stats_output_file) {
       spdlog::info("Writing statistics to {}...", stats_output_file->string());

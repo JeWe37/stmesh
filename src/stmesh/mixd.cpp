@@ -22,8 +22,7 @@ void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::pa
   out << "ne " << number_elements << "\n";
   out << "nn " << number_nodes << "\n";
   out << "nen " << 5 << "\n";
-  out << "nef " << 5 << "\n";
-  out << "nsd " << 4 << "\n";
+  out << "nmd " << 4 << "\n";
   // ndf probably not needed
   // NOLINTNEXTLINE(*-magic-numbers)
   // out << "ndf " << 4 << "\n";
@@ -31,6 +30,22 @@ void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::pa
   out << "mxyz " << mxyz_file.string() << "\n";
   out << "mien " << mien_file.string() << "\n";
   out << "mrng " << mrng_file.string() << "\n";
+}
+
+void writeNeim(const std::filesystem::path &neim_file, const std::vector<std::vector<int>> &neim) {
+  const size_t len = std::ranges::max_element(neim, {}, &std::vector<int>::size)->size();
+  std::ofstream out(neim_file);
+  constexpr static std::array<char, sizeof(int)> kZeroBytes{};
+  for (const auto &row : neim) {
+    for (const int id : row) {
+      auto id_bytes = std::bit_cast<std::array<char, sizeof(int)>>(id);
+      if constexpr (std::endian::native != std::endian::big)
+        std::reverse(id_bytes.begin(), id_bytes.end());
+      out.write(id_bytes.data(), sizeof(int));
+    }
+    for (size_t i = row.size(); i < len; ++i)
+      out.write(kZeroBytes.data(), sizeof(int));
+  }
 }
 
 std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Vector4F> &vertices,
