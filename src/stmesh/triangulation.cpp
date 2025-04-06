@@ -113,8 +113,11 @@ template class TriangulationFromMixdGeneric<>;
 template class TriangulationFromMixdGeneric<detail::MixdDataCell>;
 
 template <typename ExtraData> [[nodiscard]] Vector4F Triangulation<ExtraData>::pointToVec(const Point &pt) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
   return {static_cast<FLOAT_T>(pt[0]), static_cast<FLOAT_T>(pt[1]), static_cast<FLOAT_T>(pt[2]),
           static_cast<FLOAT_T>(pt[3])};
+#pragma GCC diagnostic pop
 }
 
 template <typename ExtraData>

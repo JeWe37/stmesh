@@ -62,6 +62,7 @@ macro(stmesh_setup_options)
     option(stmesh_ENABLE_PCH "Enable precompiled headers" OFF)
     option(stmesh_ENABLE_CACHE "Enable ccache" ON)
     option(stmesh_ENABLE_PROFILING "Enable profiling" OFF)
+    option(stmesh_BUILD_PY4DPROJECT "Build py4dproject" OFF)
   endif()
 
   if(NOT PROJECT_IS_TOP_LEVEL)
@@ -115,6 +116,18 @@ macro(stmesh_global_options)
     endif()
     message("${stmesh_ENABLE_HARDENING} ${ENABLE_UBSAN_MINIMAL_RUNTIME} ${stmesh_ENABLE_SANITIZER_UNDEFINED}")
     stmesh_enable_hardening(stmesh_options ON ${ENABLE_UBSAN_MINIMAL_RUNTIME})
+  endif()
+
+  if(stmesh_BUILD_PY4DPROJECT AND (stmesh_ENABLE_SANITIZER_UNDEFINED
+      OR stmesh_ENABLE_SANITIZER_ADDRESS
+      OR stmesh_ENABLE_SANITIZER_THREAD
+      OR stmesh_ENABLE_SANITIZER_LEAK))
+    message( "WARNING: py4dproject does not support sanitizers.")
+  endif()
+
+  if (stmesh_BUILD_PY4DPROJECT)
+    message(STATUS "Building py4dproject")
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
   endif()
 endmacro()
 

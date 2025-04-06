@@ -29,7 +29,7 @@ add_test(NAME cli.has_help COMMAND stmesher --help)
 add_test(NAME cli.version_matches COMMAND stmesher --version)
 set_tests_properties(cli.version_matches PROPERTIES PASS_REGULAR_EXPRESSION "${PROJECT_VERSION}")
 
-add_executable(tests 
+add_executable(normal_tests 
   edt_tests.cpp
   geometric_simplex_tests.cpp
   marching_hypercubes_tests.cpp
@@ -47,7 +47,7 @@ add_executable(tests
   mesh_projector_tests.cpp
 )
 target_link_libraries(
-  tests
+  normal_tests
   PRIVATE stmesh::stmesh_warnings
           stmesh::stmesh_options
           stmesh::stmesh
@@ -55,9 +55,9 @@ target_link_libraries(
 
 if(WIN32 AND BUILD_SHARED_LIBS)
   add_custom_command(
-    TARGET tests
+    TARGET normal_tests
     PRE_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:tests> $<TARGET_FILE_DIR:tests>
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:normal_tests> $<TARGET_FILE_DIR:normal_tests>
     COMMAND_EXPAND_LISTS)
 endif()
 
@@ -66,7 +66,7 @@ file(COPY data DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 # automatically discover tests that are defined in catch based test files you can modify the unittests. Set TEST_PREFIX
 # to whatever you want, or use different for different binaries
 catch_discover_tests(
-  tests
+  normal_tests
   TEST_PREFIX
   "unittests."
   PROPERTIES

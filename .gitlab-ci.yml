@@ -57,9 +57,12 @@ deploy:
   stage: deploy
   script:
     - docker build --builder=builder-container --load --cache-from type=local,src=ci/cache --cache-to type=local,dest=ci/cache,compression=zstd -t $CI_REGISTRY_IMAGE:ubuntu-$CI_COMMIT_SHA -t stmesh:ubuntu-$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE:ubuntu-dev --build-arg CORES=8 --build-arg='VARIANT=noble' --build-arg='GCC_VER=14' --build-arg='LLVM_VER=18' . --target release
+    - docker build --builder=builder-container --load --cache-from type=local,src=ci/cache --cache-to type=local,dest=ci/cache,compression=zstd -t $CI_REGISTRY_IMAGE:alpine-dev -t $CI_REGISTRY_IMAGE:alpine-$CI_COMMIT_SHA --build-arg CORES=8 . -f Dockerfile.alpine
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
     - '[ $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH ] && docker image push $CI_REGISTRY_IMAGE:ubuntu-dev'
     - docker image push $CI_REGISTRY_IMAGE:ubuntu-$CI_COMMIT_SHA
+    - '[ $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH ] && docker image push $CI_REGISTRY_IMAGE:alpine-dev'
+    - docker image push $CI_REGISTRY_IMAGE:alpine-$CI_COMMIT_SHA
   dependencies: []
 
 release_docker:
@@ -68,7 +71,8 @@ release_docker:
     - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-    - docker buildx imagetools create $CI_REGISTRY_IMAGE:ubuntu-dev --tag $CI_REGISTRY_IMAGE:ubuntu --tag $CI_REGISTRY_IMAGE:ubuntu-$CI_COMMIT_TAG --tag $CI_REGISTRY_IMAGE:latest
+    - docker buildx imagetools create $CI_REGISTRY_IMAGE:ubuntu-dev --tag $CI_REGISTRY_IMAGE:ubuntu --tag $CI_REGISTRY_IMAGE:ubuntu-$CI_COMMIT_TAG
+    - docker buildx imagetools create $CI_REGISTRY_IMAGE:alpine-dev --tag $CI_REGISTRY_IMAGE:alpine --tag $CI_REGISTRY_IMAGE:alpine-$CI_COMMIT_TAG --tag $CI_REGISTRY_IMAGE:latest
   dependencies: []
 
 release_gitlab:

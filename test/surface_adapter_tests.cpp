@@ -1,4 +1,10 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#if !defined(__clang__)
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
 #include <catch2/catch_message.hpp>
+#pragma GCC diagnostic pop
 #include <catch2/catch_test_macros.hpp>
 
 #include <cmath>

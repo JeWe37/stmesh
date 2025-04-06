@@ -69,6 +69,17 @@
             }
         },
         {
+            "name": "unixlike-gcc-release-py4dproject",
+            "displayName": "gcc Release py4dproject",
+            "description": "Target Unix-like OS with the gcc compiler, release build type. Includes py4dproject.",
+            "inherits": "unixlike-gcc-release",
+            "cacheVariables": {
+                "stmesh_BUILD_PY4DPROJECT": "ON",
+                "BUILD_SHARED_LIBS": "OFF",
+                "stmesh_ENABLE_IPO": "OFF"
+            }
+        },
+        {
             "name": "unixlike-gcc-release-sanitized",
             "displayName": "gcc Release sanitized",
             "description": "Target Unix-like OS with the gcc compiler, release build type with sanitizers",
@@ -145,6 +156,12 @@
             "displayName": "gcc Release",
             "description": "Target Unix-like OS with the gcc compiler, release build type",
             "configurePreset": "unixlike-gcc-release"
+        },
+        {
+            "name": "unixlike-gcc-release-py4dproject",
+            "displayName": "gcc Release",
+            "description": "Target Unix-like OS with the gcc compiler, release build type with py4dproject",
+            "configurePreset": "unixlike-gcc-release-py4dproject"
         },
         {
             "name": "unixlike-gcc-release-sanitized",

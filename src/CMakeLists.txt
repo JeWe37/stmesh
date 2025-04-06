@@ -1,3 +1,6 @@
 add_subdirectory(generator)
 add_subdirectory(stmesh)
 add_subdirectory(app)
+if (stmesh_BUILD_PY4DPROJECT)
+    add_subdirectory(py4dproject)
+endif()

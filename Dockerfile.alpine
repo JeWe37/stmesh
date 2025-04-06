@@ -1,0 +1,38 @@
+FROM alpine:3.21.3
+
+# Install GCC toolchain
+RUN apk update && apk add --no-cache \
+    alpine-sdk \
+    samurai cmake \
+    mold \
+    cgal-dev vtk-dev fftw-dev eigen-dev gmp-dev mpfr-dev
+
+#potentially add gmp-static!
+
+# Install Python 3 
+RUN apk update && apk add --no-cache \
+    python3 python3-dev \
+    py3-scipy py3-numpy
+
+COPY docker/itk.patch /opt/itk.patch
+
+ARG CORES
+
+# Build own version of ITK with patch
+RUN git clone --depth 1 --branch v5.2.1 https://github.com/InsightSoftwareConsortium/ITK /opt/itk-src && \
+    cd /opt/itk-src && \
+    patch -p1 < /opt/itk.patch && \
+    mkdir /opt/itk-gcc-build && \
+    cd /opt/itk-gcc-build && \
+    CXXFLAGS=-Doff64_t=off_t cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON -DITKGroup_IO:BOOL=ON -DModule_ITKCommon:BOOL=ON -DITK_USE_SYSTEM_EIGEN:BOOL=ON /opt/itk-src && \
+    cmake --build . -j ${CORES:-$(nproc)}
+
+RUN cd /usr/lib/gcc/x86_64-alpine-linux-musl/14.2.0 && cp crtbeginT.o crtbeginT.o.orig && cp crtbeginS.o crtbeginT.o
+
+# Build the project
+WORKDIR /stmesh
+RUN --mount=type=bind,target=.,src=.,rw cmake --preset unixlike-gcc-release-py4dproject && \
+                                        cmake --build --preset unixlike-gcc-release-py4dproject -j ${CORES:-$(nproc)} && \
+                                        cmake --install out/build/unixlike-gcc-release-py4dproject/ --prefix /usr 
+
+ENTRYPOINT ["/usr/bin/stmesher"]

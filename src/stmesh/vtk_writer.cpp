@@ -5,6 +5,7 @@
 #include <bit>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <random>
@@ -168,7 +169,8 @@ void writeVTUFile(const std::filesystem::path &directory, const std::string_view
       const vtkIdType id = grid->InsertNextCell(VTK_POLYHEDRON, static_cast<vtkIdType>(polyhedron.point_ids_.size()),
                                                 polyhedron.point_ids_.data(), num_facets, faces->GetPointer(0));
       id_array->InsertTuple1(id, static_cast<double>(polyhedron.polyhedron_id_));
-      random_array->InsertTuple1(id, static_cast<double>(std::mt19937(polyhedron.polyhedron_id_)()));
+      random_array->InsertTuple1(
+          id, static_cast<double>(std::mt19937(static_cast<uint_fast32_t>(polyhedron.polyhedron_id_))()));
     }
     grid->GetCellData()->AddArray(id_array);
     grid->GetCellData()->AddArray(random_array);

@@ -3,6 +3,7 @@
 
 #include <concepts>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <numeric>
 #include <span>
@@ -74,6 +75,26 @@ const ProblemType kCNSProblem = {{DataEntry{"pressure", 1}, DataEntry{"velocity"
 const ProblemType kRVTCNSProblem = {{DataEntry{"density", 1}, DataEntry{"velocity", 3},
                                      DataEntry{"temperature", 1}}}; ///< The problem type for a density based
                                                                     ///< compressible Navier-Stokes problem
+
+#pragma GCC diagnostic push // see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55776
+#pragma GCC diagnostic ignored "-Wshadow"
+enum class ProblemTypeEnum : std::uint8_t {
+  kSolidProblem,
+  kViscoelasticProblem,
+  kAdvectionDiffusionProblem,
+  kINSProblem,
+  kCNSProblem,
+  kRVTCNSProblem
+}; ///< The problem type enum
+#pragma GCC diagnostic pop
+
+const std::map<ProblemTypeEnum, ProblemType> kProblemTypeMap = {
+    {ProblemTypeEnum::kSolidProblem, kSolidProblem},
+    {ProblemTypeEnum::kViscoelasticProblem, kViscoelasticProblem},
+    {ProblemTypeEnum::kAdvectionDiffusionProblem, kAdvectionDiffusionProblem},
+    {ProblemTypeEnum::kINSProblem, kINSProblem},
+    {ProblemTypeEnum::kCNSProblem, kCNSProblem},
+    {ProblemTypeEnum::kRVTCNSProblem, kRVTCNSProblem}}; ///< The map from problem type enums to problem types
 
 const std::map<std::string, ProblemType> kNameMap = {{"solid", kSolidProblem},
                                                      {"viscoelastic", kViscoelasticProblem},
