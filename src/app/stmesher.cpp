@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -124,10 +125,13 @@ int main(int argc, const char **argv) try {
   std::optional<unsigned> seed;
   app.add_option("--seed", seed, "Seed for random number generation");
 
-  CLI::App *edt_subcommand = app.add_subcommand("edt_geometry", "Use an EDT file for geometry");
-  CLI::App *hypercube_subcommand = app.add_subcommand("hypercube_geometry", "Use hypercube as geometry");
-  CLI::App *hypersphere_subcommand = app.add_subcommand("hypersphere_geometry", "Use hypersphere as geometry");
-  CLI::App *cylinder_subcommand = app.add_subcommand("cylinder_geometry", "Use time-extruded cylinder as geometry");
+  CLI::App *edt_subcommand = app.add_subcommand("edt_geometry", "Use an EDT file for geometry")->configurable();
+  CLI::App *hypercube_subcommand =
+      app.add_subcommand("hypercube_geometry", "Use hypercube as geometry")->configurable();
+  CLI::App *hypersphere_subcommand =
+      app.add_subcommand("hypersphere_geometry", "Use hypersphere as geometry")->configurable();
+  CLI::App *cylinder_subcommand =
+      app.add_subcommand("cylinder_geometry", "Use time-extruded cylinder as geometry")->configurable();
 
   mutuallyExclusiveOptions({edt_subcommand, hypercube_subcommand, hypersphere_subcommand, cylinder_subcommand});
 
@@ -200,6 +204,9 @@ int main(int argc, const char **argv) try {
       Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact>::Identity();
   auto data = addTransformSubcommand(app, transformation);
 
+  std::string write_config;
+  app.add_option("--write-config", write_config, "Write the config to a file");
+
   app.set_config("--config")->required(false);
   app.callback([&]() { spdlog::info("Using config:\n{}", app.config_to_str()); });
 
@@ -208,6 +215,12 @@ int main(int argc, const char **argv) try {
 
   if (show_version) {
     fmt::print("{}\n", stmesh::cmake::project_version);
+    return EXIT_SUCCESS;
+  }
+  if (!write_config.empty()) {
+    auto formatter = app.get_config_formatter();
+    std::ofstream config_file(write_config);
+    config_file << formatter->to_config(&app, true, true, "");
     return EXIT_SUCCESS;
   }
 

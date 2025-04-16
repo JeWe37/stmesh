@@ -2,6 +2,7 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <stmesh/problem_types.hpp>
 #include <stmesh/vtk_writer.hpp>
 #include <string>
@@ -32,7 +33,8 @@ int main(int argc, const char **argv) try {
   app.add_flag("--version", show_version, "Show version information");
 
   // NOLINTBEGIN(*-magic-numbers,cppcoreguidelines-init-variables)
-  CLI::App *with_coordinates = app.add_subcommand("with_coordinates", "Add to vtk files with percomputed coordinates");
+  CLI::App *with_coordinates =
+      app.add_subcommand("with_coordinates", "Add to vtk files with percomputed coordinates")->configurable();
 
   std::string vtk_out_coord_format;
   with_coordinates
@@ -43,7 +45,7 @@ int main(int argc, const char **argv) try {
   with_coordinates->add_option("steps", steps, "Number of steps of mesh")->required();
 
   CLI::App *without_coordinates =
-      app.add_subcommand("without_coordinates", "Add to vtk files without percomputed coordinates");
+      app.add_subcommand("without_coordinates", "Add to vtk files without percomputed coordinates")->configurable();
 
   stmesh::FLOAT_T vtk_output_dt;
   without_coordinates->add_option("--vtk-output-dt", vtk_output_dt, "Time step for vtk output")
@@ -89,6 +91,9 @@ int main(int argc, const char **argv) try {
   app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk mesh files")
       ->default_val("simulation_{}.vtu");
 
+  std::string write_config;
+  app.add_option("--write-config", write_config, "Write the config to a file");
+
   app.set_config("--config")->required(false);
   app.callback([&]() { spdlog::info("Using config:\n{}", app.config_to_str()); });
 
@@ -97,6 +102,12 @@ int main(int argc, const char **argv) try {
 
   if (show_version) {
     fmt::print("{}\n", stmesh::cmake::project_version);
+    return EXIT_SUCCESS;
+  }
+  if (!write_config.empty()) {
+    auto formatter = app.get_config_formatter();
+    std::ofstream config_file(write_config);
+    config_file << formatter->to_config(&app, true, true, "");
     return EXIT_SUCCESS;
   }
 
