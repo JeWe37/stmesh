@@ -25,13 +25,13 @@ namespace stmesh {
  * @tparam D The dimension of the space
  */
 template <typename T, unsigned D>
-concept EuclideanDistanceTransform = requires(const T t, VectorF<D> vec, std::array<size_t, D> size) {
-  { t.signedDistanceAt(vec) } -> std::convertible_to<FLOAT_T>;
-  { t.signedDistanceAt(vec, size) } -> std::convertible_to<std::vector<FLOAT_T>>;
-  { t.closestAt(vec) } -> std::convertible_to<VectorF<D>>;
-  { t.boundingBox() } -> std::convertible_to<Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)>>;
-  { t.spacing() } -> std::convertible_to<Vector4F>;
-};
+concept EuclideanDistanceTransform =
+    SignedDistance<T, D> && requires(const T t, VectorF<D> vec, std::array<size_t, D> size) {
+      { t.signedDistance(vec, size) } -> std::convertible_to<std::vector<FLOAT_T>>;
+      { t.closestAt(vec) } -> std::convertible_to<VectorF<D>>;
+      { t.boundingBox() } -> std::convertible_to<Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)>>;
+      { t.spacing() } -> std::convertible_to<Vector4F>;
+    };
 
 /// A reader for an Euclidean distance transform
 /**
@@ -88,7 +88,7 @@ public:
    * @param point The point to get the signed distance at
    * @return The signed distance at the point
    */
-  [[nodiscard]] FLOAT_T signedDistanceAt(const VectorF<D> &point) const noexcept;
+  [[nodiscard]] FLOAT_T signedDistance(const VectorF<D> &point) const noexcept;
 
   /// Get the signed distance in a region
   /**
@@ -99,8 +99,8 @@ public:
    * @param size The size of the region to get the signed distance in
    * @return The signed distance in the region
    */
-  [[nodiscard]] std::vector<FLOAT_T> signedDistanceAt(const VectorF<D> &point,
-                                                      const std::span<const size_t, D> &size) const noexcept;
+  [[nodiscard]] std::vector<FLOAT_T> signedDistance(const VectorF<D> &point,
+                                                    const std::span<const size_t, D> &size) const noexcept;
 
   /// An extension to use this as a BoundaryRegionManager
   /**

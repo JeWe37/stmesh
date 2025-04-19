@@ -304,17 +304,18 @@ int main(int argc, const char **argv) try {
         return expression.value();
       };
 
-      if (radius_scheme == RadiusSchemes::kLfs) {
+      if (radius_scheme == RadiusSchemes::kLfs && edt_reader) {
         if constexpr (LFS) {
           spdlog::debug("Using LFS radius scheme");
           mesh(surface_adapter, std::forward<decltype(lfs_scheme)>(lfs_scheme),
                stmesh::radius_schemes::LFSRadius(edt_reader, radius_scheme_lambda), edt_reader);
         } else
           return false;
-      } else if (radius_scheme == RadiusSchemes::kBoundary && edt_reader) {
+      } else if (radius_scheme == RadiusSchemes::kBoundary) {
         spdlog::debug("Using boundary distance radius scheme");
         mesh(surface_adapter, std::forward<decltype(lfs_scheme)>(lfs_scheme),
-             stmesh::radius_schemes::BoundaryDistanceRadius(edt_reader, radius_scheme_lambda), edt_reader);
+             stmesh::radius_schemes::BoundaryDistanceRadius(surface_adapter.signedDistanceType(), radius_scheme_lambda),
+             edt_reader);
       } else
         return false;
     }

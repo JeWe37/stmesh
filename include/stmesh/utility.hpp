@@ -25,6 +25,11 @@ using ArrayF = Eigen::Array<FLOAT_T, static_cast<int>(D), 1>; ///< An array of d
 using Array4F = ArrayF<static_cast<unsigned>(4)>;             ///< An array of dimension 4 of FLOAT_T
 using Array3F = ArrayF<static_cast<unsigned>(3)>;             ///< An array of dimension 3 of FLOAT_T
 
+template <typename T, unsigned D>
+concept SignedDistance = requires(T t, VectorF<D> vec) {
+  { t.signedDistance(vec) } -> std::convertible_to<FLOAT_T>;
+};
+
 /// A hash function for Eigen::Matrix
 /**
  * A hash function for Eigen::Matrix. This is used to allow Eigen::Matrix to be used as a key in a std::unordered_map.

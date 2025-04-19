@@ -47,16 +47,16 @@ public:
 static_assert(RadiusScheme<Constant>);
 
 namespace detail {
-template <typename M, bool LFS>
-requires std::is_invocable_r_v<FLOAT_T, M, FLOAT_T>
+template <typename M, typename T>
+requires std::is_invocable_r_v<FLOAT_T, M, FLOAT_T> && SignedDistance<T, 4>
 class DistanceRadius {
 protected:
   M mapper_;
-  std::shared_ptr<stmesh::EDTReader<4, LFS>> edt_reader_;
+  std::shared_ptr<T> signed_distance_;
 
 public:
-  explicit DistanceRadius(const std::shared_ptr<stmesh::EDTReader<4, LFS>> &edt_reader, M mapper = {})
-      : mapper_(mapper), edt_reader_(edt_reader) {}
+  explicit DistanceRadius(const std::shared_ptr<T> &signed_distance, M mapper = {})
+      : mapper_(mapper), signed_distance_(signed_distance) {}
 };
 } // namespace detail
 
@@ -67,13 +67,13 @@ using Linear_t = decltype([](const FLOAT_T dist) { return dist; });
  * A boundary distance radius scheme. This scheme returns the signed distance to the boundary for all points.
  * You can provide a custom mapper function to transform the distance.
  *
- * @tparam LFS Whether to use the thinned image for the distance
+ * @tparam T The type from which to read the signed distance
  * @tparam M The type of the mapper function
  */
-template <bool LFS, typename M = Linear_t> class BoundaryDistanceRadius : detail::DistanceRadius<M, LFS> {
-  using Super = detail::DistanceRadius<M, LFS>;
-  using Super::edt_reader_;
+template <typename T, typename M = Linear_t> class BoundaryDistanceRadius : detail::DistanceRadius<M, T> {
+  using Super = detail::DistanceRadius<M, T>;
   using Super::mapper_;
+  using Super::signed_distance_;
 
 public:
   /// Construct a boundary distance radius scheme
@@ -93,18 +93,16 @@ public:
    * @return The signed distance to the boundary
    */
   [[nodiscard]] FLOAT_T operator()(const Vector4F &vec) const noexcept {
-    return mapper_(edt_reader_->signedDistanceAt(vec));
+    return mapper_(signed_distance_->signedDistance(vec));
   }
 };
 
-template <typename M, bool LFS>
-BoundaryDistanceRadius(const std::shared_ptr<stmesh::EDTReader<4, LFS>> &, M) -> BoundaryDistanceRadius<LFS, M>;
+template <typename M, typename T> BoundaryDistanceRadius(const std::shared_ptr<T> &, M) -> BoundaryDistanceRadius<T, M>;
 
-template <bool LFS>
-BoundaryDistanceRadius(const std::shared_ptr<stmesh::EDTReader<4, LFS>> &) -> BoundaryDistanceRadius<LFS>;
+template <typename T> BoundaryDistanceRadius(const std::shared_ptr<T> &) -> BoundaryDistanceRadius<T>;
 
-static_assert(RadiusScheme<BoundaryDistanceRadius<false>>);
-static_assert(RadiusScheme<BoundaryDistanceRadius<true>>);
+static_assert(RadiusScheme<BoundaryDistanceRadius<stmesh::EDTReader<4, false>>>);
+static_assert(RadiusScheme<BoundaryDistanceRadius<stmesh::EDTReader<4, true>>>);
 
 /// A local feature size radius scheme
 /**
@@ -113,10 +111,10 @@ static_assert(RadiusScheme<BoundaryDistanceRadius<true>>);
  *
  * @tparam M The type of the mapper function
  */
-template <typename M = Linear_t> class LFSRadius : detail::DistanceRadius<M, true> {
-  using Super = detail::DistanceRadius<M, true>;
-  using Super::edt_reader_;
+template <typename M = Linear_t> class LFSRadius : detail::DistanceRadius<M, stmesh::EDTReader<4, true>> {
+  using Super = detail::DistanceRadius<M, stmesh::EDTReader<4, true>>;
   using Super::mapper_;
+  using Super::signed_distance_;
 
 public:
   /// Construct a local feature size radius scheme
@@ -136,7 +134,7 @@ public:
    * @return The distance to the thinned image
    */
   [[nodiscard]] FLOAT_T operator()(const Vector4F &vec) const noexcept {
-    return mapper_(edt_reader_->distanceToThinnedAt(vec));
+    return mapper_(signed_distance_->distanceToThinnedAt(vec));
   }
 };
 

@@ -29,14 +29,14 @@ TEST_CASE("BoundaryDistanceRadius Scheme", "[radius_schemes][boundary]") {
   stmesh::radius_schemes::BoundaryDistanceRadius boundary_scheme(reader);
 
   stmesh::FLOAT_T result = boundary_scheme(vec);
-  stmesh::FLOAT_T expected = reader->signedDistanceAt(vec);
+  stmesh::FLOAT_T expected = reader->signedDistance(vec);
   REQUIRE(result == Approx(expected));
 
   auto double_mapper = [](stmesh::FLOAT_T dist) { return dist * 2.0; };
   stmesh::radius_schemes::BoundaryDistanceRadius custom_boundary_scheme(reader, double_mapper);
 
   stmesh::FLOAT_T result_custom = custom_boundary_scheme(vec);
-  stmesh::FLOAT_T expected_custom = reader->signedDistanceAt(vec) * 2.0;
+  stmesh::FLOAT_T expected_custom = reader->signedDistance(vec) * 2.0;
   REQUIRE(result_custom == Approx(expected_custom));
 }
 
