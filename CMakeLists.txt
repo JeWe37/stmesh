@@ -17,7 +17,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # Set the project name and language
 project(
   stmesh
-  VERSION 0.0.1
+  VERSION 1.0.0
   DESCRIPTION ""
   HOMEPAGE_URL "https://github.com/JeWe37/stmesh"
   LANGUAGES CXX C)
@@ -37,9 +37,12 @@ stmesh_local_options()
 # don't know if this should be set globally from here or not...
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
-set(GIT_SHA
-    "Unknown"
-    CACHE STRING "SHA this build was generated from")
+execute_process(COMMAND
+  "${GIT_EXECUTABLE}" describe --match=NeVeRmAtCh --always --abbrev=40 --dirty
+  WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+  OUTPUT_VARIABLE GIT_SHA
+  ERROR_QUIET OUTPUT_STRIP_TRAILING_WHITESPACE)
+
 string(
   SUBSTRING "${GIT_SHA}"
             0

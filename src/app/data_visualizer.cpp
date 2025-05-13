@@ -26,15 +26,20 @@
 int main(int argc, const char **argv) try {
   spdlog::cfg::load_env_levels();
   // NOLINTNEXTLINE(misc-const-correctness)
-  CLI::App app{fmt::format("{} version {}", stmesh::cmake::project_name, stmesh::cmake::project_version)};
+  CLI::App app{fmt::format("{} version {}(built from {})", stmesh::cmake::project_name, stmesh::cmake::project_version,
+                           stmesh::cmake::git_sha)};
 
   // NOLINTBEGIN(misc-const-correctness)
+  CLI::App *version_group = app.add_option_group("Version")->configurable();
   bool show_version{};
-  app.add_flag("--version", show_version, "Show version information");
+  version_group->add_flag("--version", show_version, "Show version information");
+  CLI::App *regular_group = app.add_option_group("Regular")->configurable();
+  CLI::TriggerOff(version_group, regular_group);
 
   // NOLINTBEGIN(*-magic-numbers,cppcoreguidelines-init-variables)
   CLI::App *with_coordinates =
-      app.add_subcommand("with_coordinates", "Add to vtk files with percomputed coordinates")->configurable();
+      regular_group->add_subcommand("with_coordinates", "Add to vtk files with percomputed coordinates")
+          ->configurable();
 
   std::string vtk_out_coord_format;
   with_coordinates
@@ -45,7 +50,8 @@ int main(int argc, const char **argv) try {
   with_coordinates->add_option("steps", steps, "Number of steps of mesh")->required();
 
   CLI::App *without_coordinates =
-      app.add_subcommand("without_coordinates", "Add to vtk files without percomputed coordinates")->configurable();
+      regular_group->add_subcommand("without_coordinates", "Add to vtk files without percomputed coordinates")
+          ->configurable();
 
   stmesh::FLOAT_T vtk_output_dt;
   without_coordinates->add_option("--vtk-output-dt", vtk_output_dt, "Time step for vtk output")
@@ -65,34 +71,34 @@ int main(int argc, const char **argv) try {
                                   "The scale for the vtk coordinates when mapping to space-time");
   // NOLINTEND(*-magic-numbers,cppcoreguidelines-init-variables)
 
-  app.require_subcommand(1);
+  regular_group->require_subcommand(1);
 
   std::string mixd_file_name;
-  app.add_option("mixd_file_name", mixd_file_name, "The name of the MIXD file to read")->required();
+  regular_group->add_option("mixd_file_name", mixd_file_name, "The name of the MIXD file to read")->required();
 
   std::string data_file_name;
-  app.add_option("data_file_name", data_file_name, "The name of the data file to read")->required();
+  regular_group->add_option("data_file_name", data_file_name, "The name of the data file to read")->required();
 
   std::string problem_type_str;
-  app.add_option("problem_type", problem_type_str, "The problem type to use for the data file")
+  regular_group->add_option("problem_type", problem_type_str, "The problem type to use for the data file")
       ->required()
       ->check(CLI::IsMember(stmesh::kNameMap));
 
   std::filesystem::path vtk_output_dir;
-  app.add_option("vtk-output-dir", vtk_output_dir, "Directory to write vtk files to")
+  regular_group->add_option("vtk-output-dir", vtk_output_dir, "Directory to write vtk files to")
       ->required()
       ->check(CLI::ExistingDirectory);
 
   std::string vtk_mesh_name_format;
-  app.add_option("--vtk-mesh-name-format", vtk_mesh_name_format, "Format string for vtk mesh files")
+  regular_group->add_option("--vtk-mesh-name-format", vtk_mesh_name_format, "Format string for vtk mesh files")
       ->default_val("mesh_{}.vtu");
 
   std::string vtk_output_name_format;
-  app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk mesh files")
+  regular_group->add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk mesh files")
       ->default_val("simulation_{}.vtu");
 
   std::string write_config;
-  app.add_option("--write-config", write_config, "Write the config to a file");
+  regular_group->add_option("--write-config", write_config, "Write the config to a file");
 
   app.set_config("--config")->required(false);
   app.callback([&]() { spdlog::info("Using config:\n{}", app.config_to_str()); });
@@ -101,7 +107,7 @@ int main(int argc, const char **argv) try {
   CLI11_PARSE(app, argc, argv);
 
   if (show_version) {
-    fmt::print("{}\n", stmesh::cmake::project_version);
+    fmt::print("{} commit {}\n", stmesh::cmake::project_version, stmesh::cmake::git_sha);
     return EXIT_SUCCESS;
   }
   if (!write_config.empty()) {
@@ -114,7 +120,7 @@ int main(int argc, const char **argv) try {
   const stmesh::TriangulationFromMixdWithData triangulation_from_mixd(
       mixd_file_name, stmesh::kNameMap.at(problem_type_str), data_file_name);
 
-  if (app.got_subcommand(with_coordinates))
+  if (regular_group->got_subcommand(with_coordinates))
     stmesh::addVTUData(vtk_output_dir, vtk_mesh_name_format, vtk_output_name_format, steps, triangulation_from_mixd,
                        vtk_out_coord_format);
   else

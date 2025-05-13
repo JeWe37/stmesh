@@ -46,7 +46,8 @@ void mutuallyExclusiveOptions(const std::vector<CLI::App *> &apps) {
 int main(int argc, const char **argv) try {
   spdlog::cfg::load_env_levels();
   // NOLINTNEXTLINE(misc-const-correctness)
-  CLI::App app{fmt::format("{} version {}", stmesh::cmake::project_name, stmesh::cmake::project_version)};
+  CLI::App app{fmt::format("{} version {}(built from {})", stmesh::cmake::project_name, stmesh::cmake::project_version,
+                           stmesh::cmake::git_sha)};
 
   // NOLINTBEGIN(misc-const-correctness)
   bool show_version{};
@@ -214,7 +215,7 @@ int main(int argc, const char **argv) try {
   CLI11_PARSE(app, argc, argv);
 
   if (show_version) {
-    fmt::print("{}\n", stmesh::cmake::project_version);
+    fmt::print("{} commit {}\n", stmesh::cmake::project_version, stmesh::cmake::git_sha);
     return EXIT_SUCCESS;
   }
   if (!write_config.empty()) {
