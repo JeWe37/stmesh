@@ -79,7 +79,8 @@ std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view 
   return file;
 }
 
-bool positivePentatopeElementDet(const std::array<int, 5> &vertex_ids, const std::vector<Vector4F> &vertices) {
+[[nodiscard]] bool positivePentatopeElementDet(const std::array<int, 5> &vertex_ids,
+                                               const std::vector<Vector4F> &vertices) {
   Vector4F xr1 = vertices[static_cast<size_t>(vertex_ids[0])] - vertices[static_cast<size_t>(vertex_ids[4])];
   Vector4F xr2 = vertices[static_cast<size_t>(vertex_ids[1])] - vertices[static_cast<size_t>(vertex_ids[4])];
   Vector4F xr3 = vertices[static_cast<size_t>(vertex_ids[2])] - vertices[static_cast<size_t>(vertex_ids[4])];
@@ -99,7 +100,7 @@ bool positivePentatopeElementDet(const std::array<int, 5> &vertex_ids, const std
   return dettmp > FLOAT_T();
 }
 
-std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file) {
+[[nodiscard]] std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file) {
   std::ifstream in(mxyz_file, std::ios::binary);
   std::vector<Vector4F> vertices;
   while (in) {
@@ -121,7 +122,7 @@ std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file) {
   throw std::runtime_error("Unexpected end of file");
 }
 
-std::vector<std::vector<FLOAT_T>> readData(const std::filesystem::path &data_file, size_t n) {
+[[nodiscard]] std::vector<std::vector<FLOAT_T>> readData(const std::filesystem::path &data_file, size_t n) {
   std::ifstream in(data_file, std::ios::binary);
   std::vector<std::vector<FLOAT_T>> vertices;
   while (in) {
@@ -142,7 +143,7 @@ std::vector<std::vector<FLOAT_T>> readData(const std::filesystem::path &data_fil
   throw std::runtime_error("Unexpected end of file");
 }
 
-std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file) {
+[[nodiscard]] std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file) {
   std::ifstream in(file, std::ios::binary);
   std::vector<std::array<int, 5>> full_cell_vertex_ids;
   while (in) {
@@ -164,7 +165,7 @@ std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file) {
   throw std::runtime_error("Unexpected end of file");
 }
 
-MinfData readMinf(const std::filesystem::path &minf_file) {
+[[nodiscard]] MinfData readMinf(const std::filesystem::path &minf_file) {
   std::ifstream in(minf_file);
   MinfData data;
   while (in) {

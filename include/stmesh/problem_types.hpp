@@ -8,14 +8,17 @@
 #include <numeric>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
+
+#include <fmt/core.h>
 
 #include "utility.hpp"
 
 namespace stmesh {
 /// A data entry for a problem type
 struct DataEntry {
-  const char *name; ///< The name of the data entry
+  std::string name; ///< The name of the data entry
   size_t length;    ///< The length of the data entry
 };
 
@@ -59,6 +62,13 @@ struct ProblemType {
   }
 };
 
+[[nodiscard]] constexpr ProblemType genericProblemType(size_t n) {
+  std::vector<DataEntry> data_entries;
+  for (size_t i = 0; i < n; ++i)
+    data_entries.emplace_back(fmt::format("u_{}", i).c_str(), 1);
+  return {std::move(data_entries)};
+}
+
 // NOLINTBEGIN(cert-err58-cpp)
 const ProblemType kSolidProblem = {{{"displacement", 3}}}; ///< The problem type for a solid problem
 const ProblemType kViscoelasticProblem = {
@@ -75,6 +85,9 @@ const ProblemType kCNSProblem = {{DataEntry{"pressure", 1}, DataEntry{"velocity"
 const ProblemType kRVTCNSProblem = {{DataEntry{"density", 1}, DataEntry{"velocity", 3},
                                      DataEntry{"temperature", 1}}}; ///< The problem type for a density based
                                                                     ///< compressible Navier-Stokes problem
+const ProblemType kEMUMProblem = {{{"displacement", 4}}};           ///< The problem type for an EMUM problem
+const ProblemType kSolidUVProblem = {
+    {DataEntry{"displacement", 3}, DataEntry{"velocity", 3}}}; ///< The problem type for a displacement-velocity problem
 
 #pragma GCC diagnostic push // see https://gcc.gnu.org/bugzilla/show_bug.cgi?id=55776
 #pragma GCC diagnostic ignored "-Wshadow"
@@ -84,7 +97,9 @@ enum class ProblemTypeEnum : std::uint8_t {
   kAdvectionDiffusionProblem,
   kINSProblem,
   kCNSProblem,
-  kRVTCNSProblem
+  kRVTCNSProblem,
+  kEMUMProblem,
+  kSolidUVProblem
 }; ///< The problem type enum
 #pragma GCC diagnostic pop
 
@@ -101,8 +116,10 @@ const std::map<std::string, ProblemType> kNameMap = {{"solid", kSolidProblem},
                                                      {"advection_diffusion", kAdvectionDiffusionProblem},
                                                      {"ins", kINSProblem},
                                                      {"cns", kCNSProblem},
-                                                     {"rvtcns", kRVTCNSProblem}}; ///< The map from problem type names
-                                                                                  ///< to problem types
+                                                     {"rvtcns", kRVTCNSProblem},
+                                                     {"emum", kEMUMProblem},
+                                                     {"soliduv", kSolidUVProblem}}; ///< The map from problem type names
+                                                                                    ///< to problem types
 // NOLINTEND(cert-err58-cpp)
 } // namespace stmesh
 

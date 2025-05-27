@@ -3,9 +3,12 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <stmesh/problem_types.hpp>
 #include <stmesh/vtk_writer.hpp>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <CLI/App.hpp>
 // NOLINTNEXTLINE(misc-include-cleaner)
@@ -79,10 +82,21 @@ int main(int argc, const char **argv) try {
   std::string data_file_name;
   regular_group->add_option("data_file_name", data_file_name, "The name of the data file to read")->required();
 
-  std::string problem_type_str;
-  regular_group->add_option("problem_type", problem_type_str, "The problem type to use for the data file")
-      ->required()
+  std::optional<std::string> problem_type_str;
+  regular_group->add_option("--problem-type", problem_type_str, "The problem type to use for the data file")
       ->check(CLI::IsMember(stmesh::kNameMap));
+
+  std::optional<std::vector<stmesh::DataEntry>> data_entries;
+  regular_group
+      ->add_option_function<std::vector<std::pair<std::string, size_t>>>(
+          "--data-entry",
+          [&data_entries](const auto vec) {
+            data_entries = std::vector<stmesh::DataEntry>{};
+            for (const auto &[name, length] : vec)
+              data_entries->emplace_back(name, length);
+          },
+          "The data entries to construct the problem type from")
+      ->take_all();
 
   std::filesystem::path vtk_output_dir;
   regular_group->add_option("vtk-output-dir", vtk_output_dir, "Directory to write vtk files to")
@@ -118,7 +132,9 @@ int main(int argc, const char **argv) try {
   }
 
   const stmesh::TriangulationFromMixdWithData triangulation_from_mixd(
-      mixd_file_name, stmesh::kNameMap.at(problem_type_str), data_file_name);
+      mixd_file_name, data_file_name,
+      data_entries ? stmesh::ProblemType{*data_entries} // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
+                   : (problem_type_str ? std::optional{stmesh::kNameMap.at(*problem_type_str)} : std::nullopt));
 
   if (regular_group->got_subcommand(with_coordinates))
     stmesh::addVTUData(vtk_output_dir, vtk_mesh_name_format, vtk_output_name_format, steps, triangulation_from_mixd,

@@ -88,7 +88,7 @@ void addData(const std::vector<Vector4F> &poses, vtkUnstructuredGrid *grid, cons
   const ProblemType &problem_type = projector.problemType();
   std::vector<vtkNew<vtkDoubleArray>> data(problem_type.data_entries.size());
   for (size_t j = 0; j < data.size(); ++j) {
-    data[j]->SetName(problem_type.data_entries[j].name);
+    data[j]->SetName(problem_type.data_entries[j].name.c_str());
     data[j]->SetNumberOfComponents(static_cast<int>(problem_type.data_entries[j].length));
   }
 

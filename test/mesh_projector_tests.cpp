@@ -14,8 +14,8 @@
 #include "stmesh/utility.hpp"
 
 TEST_CASE("Test mesh projector", "[mesh_project]") {
-  stmesh::TriangulationFromMixdWithData triangulation("data/sample_mixd/values.minf", stmesh::kINSProblem,
-                                                      "data/sample_mixd/values.mxyz");
+  stmesh::TriangulationFromMixdWithData triangulation("data/sample_mixd/values.minf", "data/sample_mixd/values.mxyz",
+                                                      stmesh::kINSProblem);
   stmesh::MeshProjector projector(&triangulation);
 
   std::array simplices{stmesh::GeometricSimplex<4>{
@@ -55,8 +55,8 @@ TEST_CASE("Test mesh projector", "[mesh_project]") {
 }
 
 TEST_CASE("Test mesh projector against old version", "[mesh_project]") {
-  stmesh::TriangulationFromMixdWithData triangulation("data/projection_sample/artery.minf", stmesh::kINSProblem,
-                                                      "data/projection_sample/INS_SST.out");
+  stmesh::TriangulationFromMixdWithData triangulation("data/projection_sample/artery.minf",
+                                                      "data/projection_sample/INS_SST.out", stmesh::kINSProblem);
   stmesh::MeshProjector projector(&triangulation);
 
   std::vector<stmesh::Vector4F> test_positions = stmesh::mixd::readMxyz("data/projection_sample/stacked.dat");

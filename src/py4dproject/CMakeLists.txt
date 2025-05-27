@@ -19,6 +19,7 @@ target_link_libraries(py4dproject PRIVATE
     -nolibc -static-libgcc -static-libstdc++ ${LIBC_LIB}
     $<COMPILE_ONLY:stmesh::stmesh>
     $<TARGET_FILE:stmesh::stmesh>
+    fmt::fmt
     ${LIBGMP_LIB}
 )
 

@@ -251,7 +251,7 @@ TEMPLATE_TEST_CASE("Test triangulation from MIXD", "[triangulation]", stmesh::Tr
 
   TestType triangulation = [] {
     if constexpr (std::is_same_v<TestType, stmesh::TriangulationFromMixdWithData>)
-      return TestType("data/sample_mixd/values.minf", stmesh::kINSProblem, "data/sample_mixd/values.mxyz");
+      return TestType("data/sample_mixd/values.minf", "data/sample_mixd/values.mxyz", stmesh::kINSProblem);
     else
       return TestType("data/sample_mixd/values.minf");
   }();
