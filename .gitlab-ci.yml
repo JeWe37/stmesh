@@ -65,8 +65,7 @@ deploy:
 release_docker:
   stage: release
   rules:
-    - if: $CI_COMMIT_TAG                 # Run this job when a tag is created
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
     - docker buildx imagetools create $CI_REGISTRY_IMAGE:ubuntu-dev --tag $CI_REGISTRY_IMAGE:ubuntu --tag $CI_REGISTRY_IMAGE:ubuntu-$CI_COMMIT_TAG --tag $CI_REGISTRY_IMAGE:latest
@@ -76,8 +75,7 @@ release_gitlab:
   stage: release
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   rules:
-    - if: $CI_COMMIT_TAG                 # Run this job when a tag is created
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
     - echo "Creating release for $CI_COMMIT_TAG"
   release:                              
