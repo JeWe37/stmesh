@@ -9,6 +9,8 @@
 #include <random>
 #include <ranges>
 #include <string_view>
+#include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
@@ -29,12 +31,25 @@
 #include "stmesh/utility.hpp"
 
 namespace stmesh::detail {
-[[nodiscard]] vtkIdType PointStorage::insert(const Vector3F &point) noexcept {
-  if (positions_.contains(point))
-    return positions_[point];
-  return positions_[point] = points_->InsertNextPoint(static_cast<double>(point[0]), static_cast<double>(point[1]),
-                                                      static_cast<double>(point[2]));
-}
+static_assert(std::is_same_v<vtkIdType, ::vtkIdType>, "vtkIdType forward declaration is incorrect.");
+
+struct PointStorage::Impl {
+  std::unordered_map<Vector3F, vtkIdType, Vector3FHash> positions_;
+  vtkNew<vtkPoints> points_;
+
+  [[nodiscard]] vtkIdType insert(const Vector3F &point) noexcept {
+    if (positions_.contains(point))
+      return positions_[point];
+    return positions_[point] = points_->InsertNextPoint(static_cast<double>(point[0]), static_cast<double>(point[1]),
+                                                        static_cast<double>(point[2]));
+  }
+};
+
+PointStorage::PointStorage() : pimpl_(new Impl) {}
+
+PointStorage::~PointStorage() = default;
+
+[[nodiscard]] vtkIdType PointStorage::insert(const Vector3F &point) noexcept { return pimpl_->insert(point); }
 
 PolyhedraStorage::PolyhedraStorage(
     const CGAL::Polyhedron_3<CGAL::Exact_predicates_inexact_constructions_kernel> &polyhedron, PointStorage &points,
@@ -65,9 +80,9 @@ void writeVTUFile(const std::filesystem::path &directory, const std::string_view
   for (size_t i = 0; i < n_positions; ++i) {
     if (!out_coord_format.empty()) {
       const FLOAT_T time = static_cast<FLOAT_T>(i) * dt + start_time;
-      std::vector<double> raw_point_data(points[i].positions_.size() * 4);
-      for (const vtkIdType id : points[i].positions_ | std::views::values) {
-        points[i].points_->GetPoint(id, &raw_point_data[static_cast<size_t>(id * 4)]);
+      std::vector<double> raw_point_data(points[i].pimpl_->positions_.size() * 4);
+      for (const vtkIdType id : points[i].pimpl_->positions_ | std::views::values) {
+        points[i].pimpl_->points_->GetPoint(id, &raw_point_data[static_cast<size_t>(id * 4)]);
         raw_point_data[static_cast<size_t>(id * 4 + 3)] = time - min_time;
         for (size_t j = 0; j < 4; ++j)
           raw_point_data[static_cast<size_t>(id) * 4 + j] *= scale;
@@ -76,7 +91,7 @@ void writeVTUFile(const std::filesystem::path &directory, const std::string_view
                        raw_point_data);
     }
     const vtkNew<vtkUnstructuredGrid> grid;
-    grid->SetPoints(points[i].points_);
+    grid->SetPoints(points[i].pimpl_->points_);
     const vtkNew<vtkIntArray> id_array;
     id_array->SetName("Polyhedron ID");
     id_array->SetNumberOfTuples(static_cast<vtkIdType>(polyhedra[i].size()));
@@ -93,7 +108,7 @@ void writeVTUFile(const std::filesystem::path &directory, const std::string_view
           auto pt = it_halfedge->vertex()->point();
           const Vector3F point{static_cast<FLOAT_T>(pt.x()), static_cast<FLOAT_T>(pt.y()),
                                static_cast<FLOAT_T>(pt.z())};
-          faces->InsertNextId(points[i].positions_.at(point));
+          faces->InsertNextId(points[i].pimpl_->positions_.at(point));
           it_halfedge++;
         }
         num_facets++;
@@ -117,11 +132,10 @@ void writeVTPFile(const std::filesystem::path &directory, const std::string_view
                   const std::vector<std::vector<detail::PolyhedraStorage>> &polygons,
                   const std::vector<detail::PointStorage> &points, size_t block_pos, size_t n_positions,
                   bool write_boundary_ids) {
-
   for (size_t i = 0; i < n_positions; ++i) {
     const vtkNew<vtkPolyData> poly_data;
     const vtkNew<vtkCellArray> polys;
-    poly_data->SetPoints(points[i].points_);
+    poly_data->SetPoints(points[i].pimpl_->points_);
     const vtkNew<vtkIntArray> id_array;
     if (write_boundary_ids) {
       id_array->SetName("Boundary ID");
@@ -134,7 +148,7 @@ void writeVTPFile(const std::filesystem::path &directory, const std::string_view
       for (size_t j = 0; j < it->facet_degree(); ++j) {
         auto pt = it_halfedge->vertex()->point();
         const Vector3F point{static_cast<FLOAT_T>(pt.x()), static_cast<FLOAT_T>(pt.y()), static_cast<FLOAT_T>(pt.z())};
-        face.push_back(points[i].positions_.at(point));
+        face.push_back(points[i].pimpl_->positions_.at(point));
         it_halfedge++;
       }
       const vtkIdType id = polys->InsertNextCell(static_cast<vtkIdType>(face.size()), face.data());

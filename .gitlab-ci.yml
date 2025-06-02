@@ -6,31 +6,83 @@ variables:
   # This instructs Docker not to start over TLS.
   DOCKER_TLS_CERTDIR: ""
   GIT_SUBMODULE_STRATEGY: recursive
-  configurations: unixlike-gcc-debug unixlike-clang-debug unixlike-gcc-release unixlike-clang-release
+  configurations: unixlike-gcc-debug unixlike-clang-debug unixlike-gcc-release-sanitized unixlike-clang-release-sanitized
 
 services:
   - docker:dind
 
+stages:
+  - build
+  - test
+  - deploy
+  - release
+
 default:
   cache:
-    key: build-folder
+    key: docker-build-folder
     paths:
-      - out
+      - ci/cache
+  before_script:
+    - docker buildx create --name=builder-container --driver=docker-container --use --bootstrap
+  after_script:
+    - docker buildx rm builder-container
 
 compile:
   stage: build
   script:
+    - docker build --builder=builder-container --load --cache-from type=local,src=ci/cache --cache-to type=local,dest=ci/cache,compression=zstd -t stmesh-builder:latest --build-arg='VARIANT=noble' --build-arg='GCC_VER=14' --build-arg='LLVM_VER=18' --target develop .
     - |+
       for config in $configurations
       do
         ./ci/run_docker_build.sh build $config
       done
+  artifacts:
+    paths:
+      - out/
+    exclude:
+      - out/**/*.o
+      - out/build/*/_deps
 
 test:
   stage: test
   script:
+    - docker build --builder=builder-container --load --cache-from type=local,src=ci/cache --cache-to type=local,dest=ci/cache,compression=zstd -t stmesh-builder:latest --build-arg='VARIANT=noble' --build-arg='GCC_VER=14' --build-arg='LLVM_VER=18' --target develop .
     - |+
       for config in $configurations
       do
         ./ci/run_docker_build.sh test $config
       done
+
+deploy:
+  stage: deploy
+  script:
+    - docker build --builder=builder-container --load --cache-from type=local,src=ci/cache --cache-to type=local,dest=ci/cache,compression=zstd -t $CI_REGISTRY_IMAGE:ubuntu-$CI_COMMIT_SHA -t stmesh:ubuntu-$CI_COMMIT_SHA -t $CI_REGISTRY_IMAGE:ubuntu-dev --build-arg CORES=8 --build-arg='VARIANT=noble' --build-arg='GCC_VER=14' --build-arg='LLVM_VER=18' . --target release
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - '[ $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH ] && docker image push $CI_REGISTRY_IMAGE:ubuntu-dev'
+    - docker image push $CI_REGISTRY_IMAGE:ubuntu-$CI_COMMIT_SHA
+  dependencies: []
+
+release_docker:
+  stage: release
+  rules:
+    - if: $CI_COMMIT_TAG                 # Run this job when a tag is created
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - docker buildx imagetools create $CI_REGISTRY_IMAGE:ubuntu-dev --tag $CI_REGISTRY_IMAGE:ubuntu --tag $CI_REGISTRY_IMAGE:ubuntu-$CI_COMMIT_TAG --tag $CI_REGISTRY_IMAGE:latest
+  dependencies: []
+
+release_gitlab:
+  stage: release
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  rules:
+    - if: $CI_COMMIT_TAG                 # Run this job when a tag is created
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - echo "Creating release for $CI_COMMIT_TAG"
+  release:                              
+    tag_name: '$CI_COMMIT_TAG'
+    description: '$CI_COMMIT_TAG'
+  before_script: []
+  after_script: []
+  dependencies: []

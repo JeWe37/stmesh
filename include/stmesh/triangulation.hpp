@@ -239,7 +239,7 @@ public:
    */
   [[nodiscard]] std::tuple<std::tuple<VertexHandle, int, FullCellHandle>,
                            std::optional<std::tuple<VertexHandle, int, FullCellHandle>>>
-  facetMirrorVertices(Facet facet) const noexcept;
+  facetMirrorVertices(Facet facet) const;
 
   /// Gets the vertex count of the triangulation
   /**
@@ -294,7 +294,7 @@ public:
    * @param full_cell The full cell to check
    * @return Whether the full cell is infinite
    */
-  [[nodiscard]] bool isInfinite(FullCellConstHandle full_cell) const noexcept;
+  [[nodiscard]] bool isInfinite(FullCellConstHandle full_cell) const;
 
   /// Gets the bounding box of the triangulation
   /**

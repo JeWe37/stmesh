@@ -105,12 +105,14 @@ struct Rule1 : Rule {
   }
 
   template <typename MeshingAlgorithm>
+  // cppcheck-suppress duplInheritedMember
   void apply(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell) const {
     meshing_algorithm.insert(z0, full_cell, true);
     // dependency is removed by subsequent removal of cell
   }
 
   template <typename MeshingAlgorithm>
+  // cppcheck-suppress duplInheritedMember
   void remove(MeshingAlgorithm &meshing_algorithm, const Triangulation::FullCellHandle full_cell) const {
     // if a cell that is rule 0 is removed, it must be incomplete
     HyperSphere4 sphere{meshing_algorithm.deltaSurface(z0), z0};
@@ -147,6 +149,7 @@ struct Rule2 : Rule {
   }
 
   template <typename MeshingAlgorithm>
+  // cppcheck-suppress duplInheritedMember
   void apply(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell) const {
     meshing_algorithm.insert(z, full_cell, z_outside);
   }
@@ -172,6 +175,7 @@ struct Rule3 : Rule {
   }
 
   template <typename MeshingAlgorithm>
+  // cppcheck-suppress duplInheritedMember
   void apply(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell) const {
     meshing_algorithm.insert(z, full_cell);
   }
@@ -196,6 +200,7 @@ struct Rule4 : Rule {
   }
 
   template <typename MeshingAlgorithm>
+  // cppcheck-suppress duplInheritedMember
   void apply(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell) const {
     meshing_algorithm.insert(z, full_cell);
   }
@@ -206,6 +211,7 @@ struct Rule5 : Rule {
   Eigen::Matrix<FLOAT_T, 4, 5> vertices;
   unsigned prio;
 
+  // cppcheck-suppress duplInheritedMember
   [[nodiscard]] unsigned priority() const noexcept { return prio; }
 
   template <typename MeshingAlgorithm>
@@ -225,6 +231,7 @@ struct Rule5 : Rule {
   }
 
   template <typename MeshingAlgorithm>
+  // cppcheck-suppress duplInheritedMember
   void apply(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell) const {
     meshing_algorithm.pickGoodPoint(vertices, full_cell);
   }
@@ -262,7 +269,8 @@ struct Rule6 : Rule {
             if (k != i)
               vertices.col(j++) = full_cell_simplex.vertices().col(k);
           }
-          if (meshing_algorithm.voronoiDual(vertices, &dependent_neighbor_info).has_value()) {
+          detail::Triangulation::Facet facet(full_cell, static_cast<int>(i));
+          if (meshing_algorithm.voronoiDual(vertices, &dependent_neighbor_info, facet).has_value()) {
             if (!dry_run && dependent_neighbor_info.first != full_cell)
               std::apply(MeshingAlgorithm::addDependency, dependent_neighbor_info);
             meshing_algorithm.incrementRemaining();
@@ -277,8 +285,9 @@ struct Rule6 : Rule {
       auto sub_simplices = full_cell_simplex.template subSimplices<4>();
       if (auto it = std::ranges::find_if(
               sub_simplices,
-              [&](const auto &simplex) {
-                return meshing_algorithm.voronoiDual(simplex.vertices(), &dependent_neighbor_info).has_value();
+              [&, i = 4](const auto &simplex) mutable {
+                detail::Triangulation::Facet facet(full_cell, i--);
+                return meshing_algorithm.voronoiDual(simplex.vertices(), &dependent_neighbor_info, facet).has_value();
               });
           it != sub_simplices.end()) {
         if (!dry_run && dependent_neighbor_info.first != full_cell)
@@ -293,6 +302,7 @@ struct Rule6 : Rule {
   }
 
   template <typename MeshingAlgorithm>
+  // cppcheck-suppress duplInheritedMember
   void apply(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell) const {
     detail::Triangulation &triangulation = meshing_algorithm.triangulation_;
     typename detail::Triangulation::VertexHandle vertex = meshing_algorithm.pickGoodPoint(vertices, full_cell);
@@ -324,6 +334,7 @@ struct Complete : Rule {
   }
 
   template <typename MeshingAlgorithm>
+  // cppcheck-suppress duplInheritedMember
   void remove(MeshingAlgorithm &meshing_algorithm, const Triangulation::FullCellHandle full_cell) const {
     removeZ0Dependency(meshing_algorithm, full_cell);
   }

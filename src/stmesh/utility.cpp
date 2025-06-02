@@ -3,6 +3,7 @@
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <numeric>
 
 #include <Eigen/Core>
 #include <Eigen/Geometry>
@@ -10,11 +11,10 @@
 namespace stmesh {
 template <typename Scalar, int Rows, int Cols>
 size_t MatrixHash<Scalar, Rows, Cols>::operator()(const Eigen::Matrix<Scalar, Rows, Cols> &matrix) const {
-  size_t seed = 0;
-  for (const Scalar &elem : matrix)
+  return std::accumulate(matrix.begin(), matrix.end(), size_t{}, [](size_t acc, const Scalar &elem) {
     // NOLINTNEXTLINE(*-magic-numbers)
-    seed ^= std::hash<Scalar>()(elem) + 0x9e3779b9 + (seed << 6U) + (seed >> 2U);
-  return seed;
+    return acc ^ (std::hash<Scalar>()(elem) + 0x9e3779b9 + (acc << 6U) + (acc >> 2U));
+  });
 }
 
 template struct MatrixHash<FLOAT_T, 4, 1>;

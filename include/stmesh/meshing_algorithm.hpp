@@ -337,14 +337,19 @@ public:
    * opposite vertices may lie closer than the surface. The dependent neighbor info is an optional output parameter that
    * is set to the neighbor which made this cell have a voronoi dual.
    *
+   * For performance, the facet can be passed in, if it is already known.
+   *
    * @param vertices The vertices of the face
    * @param dependent_neighbor_info The dependent neighbor info
+   * @param facet Optional facet to use
    */
   [[nodiscard]] std::optional<Vector4F>
   voronoiDual(const Eigen::Matrix<FLOAT_T, 4, 4> &vertices,
-              std::pair<detail::Triangulation::FullCellHandle, int> *dependent_neighbor_info = nullptr) const {
-    const auto [existing_side, optional_side] =
-        triangulation_.facetMirrorVertices(triangulation_.facetFromVertices(vertices));
+              std::pair<detail::Triangulation::FullCellHandle, int> *dependent_neighbor_info = nullptr,
+              std::optional<detail::Triangulation::Facet> facet = std::nullopt) const {
+    if (!facet)
+      facet = triangulation_.facetFromVertices(vertices);
+    const auto [existing_side, optional_side] = triangulation_.facetMirrorVertices(*facet);
     const auto &[facet_mirror_vertex0, facet_side_mirror_index0, facet_side0] = existing_side;
 
     Vector4F mirror_vertex0 = triangulation_.pointToVec(facet_mirror_vertex0->point());

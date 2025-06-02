@@ -62,7 +62,7 @@ public:
   EDTReader(const EDTReader &) = delete;
   EDTReader &operator=(const EDTReader &) = delete;
   EDTReader(EDTReader &&) noexcept = default;
-  EDTReader &operator=(EDTReader &&) noexcept;
+  EDTReader &operator=(EDTReader &&) noexcept = default;
 
   /// Get the spacing of the Euclidean distance transform
   /**

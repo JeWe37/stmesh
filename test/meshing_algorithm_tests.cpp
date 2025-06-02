@@ -50,8 +50,7 @@ void verifyMeshingAlgorithm(auto &meshing_algorithm, bool disable_rule6 = false)
     REQUIRE((**it).full_cell == full_cell_handle);
     const auto rule_index = static_cast<size_t>(std::visit([](const auto &r) { return r.kIndex; }, (**it).rule));
     const unsigned rule_priority = std::visit([](const auto &r) { return r.priority(); }, (**it).rule);
-    if (rule_index != stmesh::detail::Complete::kIndex ||
-        (disable_rule6 && rule_index == stmesh::detail::Rule6::kIndex)) {
+    if (rule_index != stmesh::detail::Complete::kIndex || disable_rule6) {
       if (!std::visit([&](auto &r) { return r.check(meshing_algorithm, full_cell_handle, true); },
                       rule_list.at(rule_index)))
         WARN("Issue!");
@@ -205,28 +204,54 @@ template <class... Ts> Overload(Ts...) -> Overload<Ts...>;
 
 TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
   const stmesh::SDFSurfaceAdapter<stmesh::HyperSphere4> sdf_surface_adapter(
-      stmesh::FLOAT_T(0.2),
+      stmesh::FLOAT_T(40.0),
       stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)});
-  stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(20.0), stmesh::FLOAT_T(0.01),
-                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(0.15),
-                                             stmesh::FLOAT_T(0.05));
-  for (const auto &point : {
-           stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)},
-           stmesh::Vector4F{stmesh::FLOAT_T(0.05), stmesh::FLOAT_T(0.1), stmesh::FLOAT_T(0.1), stmesh::FLOAT_T(0.05)},
-           stmesh::Vector4F{stmesh::FLOAT_T(0.05), stmesh::FLOAT_T(0.1), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.05)},
-           stmesh::Vector4F{stmesh::FLOAT_T(0.2), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)},
-           stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.2), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0)},
-           stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.2), stmesh::FLOAT_T(0.0)},
-           stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.2)},
-           stmesh::Vector4F{-stmesh::FLOAT_T(0.1), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.1)},
-           stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), -stmesh::FLOAT_T(0.1), stmesh::FLOAT_T(0.0)},
-           stmesh::Vector4F{stmesh::FLOAT_T(0.002), stmesh::FLOAT_T(0.002), stmesh::FLOAT_T(0.002),
-                            stmesh::FLOAT_T(0.199)},
-       })
+  stmesh::MeshingAlgorithm meshing_algorithm(sdf_surface_adapter, stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(0.5),
+                                             stmesh::FLOAT_T(0.5), stmesh::FLOAT_T(5.0), stmesh::FLOAT_T(5.0),
+                                             stmesh::FLOAT_T(30.0));
+  for (const auto &point :
+       {stmesh::Vector4F{stmesh::FLOAT_T(28.4), stmesh::FLOAT_T(11.6), stmesh::FLOAT_T(-32), stmesh::FLOAT_T(39.2)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-37.2), stmesh::FLOAT_T(-22), stmesh::FLOAT_T(-32.8), stmesh::FLOAT_T(30.8)},
+        stmesh::Vector4F{stmesh::FLOAT_T(25.6), stmesh::FLOAT_T(32.8), stmesh::FLOAT_T(-35.6), stmesh::FLOAT_T(-13.6)},
+        stmesh::Vector4F{stmesh::FLOAT_T(33.2), stmesh::FLOAT_T(-14), stmesh::FLOAT_T(-30.4), stmesh::FLOAT_T(-8)},
+        stmesh::Vector4F{stmesh::FLOAT_T(12.4), stmesh::FLOAT_T(1.2), stmesh::FLOAT_T(27.6), stmesh::FLOAT_T(38.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-10.8), stmesh::FLOAT_T(-23.2), stmesh::FLOAT_T(16), stmesh::FLOAT_T(-4.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-17.6), stmesh::FLOAT_T(8), stmesh::FLOAT_T(-0.4), stmesh::FLOAT_T(-28)},
+        stmesh::Vector4F{stmesh::FLOAT_T(4.4), stmesh::FLOAT_T(2.8), stmesh::FLOAT_T(-26), stmesh::FLOAT_T(-7.2)},
+        stmesh::Vector4F{stmesh::FLOAT_T(12.8), stmesh::FLOAT_T(36), stmesh::FLOAT_T(-20), stmesh::FLOAT_T(18.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-16.8), stmesh::FLOAT_T(4), stmesh::FLOAT_T(-32), stmesh::FLOAT_T(22.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(33.6), stmesh::FLOAT_T(4.8), stmesh::FLOAT_T(-34.4), stmesh::FLOAT_T(4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(39.6), stmesh::FLOAT_T(12.8), stmesh::FLOAT_T(-14), stmesh::FLOAT_T(-19.6)},
+        stmesh::Vector4F{stmesh::FLOAT_T(19.2), stmesh::FLOAT_T(6.4), stmesh::FLOAT_T(22), stmesh::FLOAT_T(16.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-29.2), stmesh::FLOAT_T(38.4), stmesh::FLOAT_T(-27.6), stmesh::FLOAT_T(10.8)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-24.4), stmesh::FLOAT_T(-40), stmesh::FLOAT_T(19.2), stmesh::FLOAT_T(-40)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-15.6), stmesh::FLOAT_T(19.6), stmesh::FLOAT_T(10.8), stmesh::FLOAT_T(13.6)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-11.2), stmesh::FLOAT_T(-4), stmesh::FLOAT_T(29.6), stmesh::FLOAT_T(-7.6)},
+        stmesh::Vector4F{stmesh::FLOAT_T(30), stmesh::FLOAT_T(-20), stmesh::FLOAT_T(10.4), stmesh::FLOAT_T(0)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-20.8), stmesh::FLOAT_T(30.4), stmesh::FLOAT_T(4.8), stmesh::FLOAT_T(-18.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-26.8), stmesh::FLOAT_T(9.6), stmesh::FLOAT_T(-24.8), stmesh::FLOAT_T(-6.8)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-20.8), stmesh::FLOAT_T(8.4), stmesh::FLOAT_T(-11.2), stmesh::FLOAT_T(28.8)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-27.2), stmesh::FLOAT_T(-34), stmesh::FLOAT_T(16), stmesh::FLOAT_T(18)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-30.4), stmesh::FLOAT_T(-6.4), stmesh::FLOAT_T(-16), stmesh::FLOAT_T(-12.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(28), stmesh::FLOAT_T(-23.6), stmesh::FLOAT_T(-10.8), stmesh::FLOAT_T(-20.8)},
+        stmesh::Vector4F{stmesh::FLOAT_T(14), stmesh::FLOAT_T(34.4), stmesh::FLOAT_T(-1.2), stmesh::FLOAT_T(-37.2)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-18.4), stmesh::FLOAT_T(38.8), stmesh::FLOAT_T(-28.8), stmesh::FLOAT_T(-7.6)},
+        stmesh::Vector4F{stmesh::FLOAT_T(34.8), stmesh::FLOAT_T(19.2), stmesh::FLOAT_T(-15.6), stmesh::FLOAT_T(28.8)},
+        stmesh::Vector4F{stmesh::FLOAT_T(3.2), stmesh::FLOAT_T(24.8), stmesh::FLOAT_T(-17.2), stmesh::FLOAT_T(-4.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(34.8), stmesh::FLOAT_T(18.8), stmesh::FLOAT_T(-32.8), stmesh::FLOAT_T(-26.4)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-23.2), stmesh::FLOAT_T(-36), stmesh::FLOAT_T(-6.4), stmesh::FLOAT_T(-3.6)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-40), stmesh::FLOAT_T(-10), stmesh::FLOAT_T(-34), stmesh::FLOAT_T(34)}})
     meshing_algorithm.insert(point);
+  for (const auto &point :
+       {stmesh::Vector4F{stmesh::FLOAT_T(38.4), stmesh::FLOAT_T(15.2), stmesh::FLOAT_T(-39.2), stmesh::FLOAT_T(17.6)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-10.4), stmesh::FLOAT_T(12), stmesh::FLOAT_T(30.4), stmesh::FLOAT_T(33.2)},
+        stmesh::Vector4F{stmesh::FLOAT_T(-39.2), stmesh::FLOAT_T(-29.6), stmesh::FLOAT_T(-15.2),
+                         stmesh::FLOAT_T(-38.8)}})
+    meshing_algorithm.insert(sdf_surface_adapter.closestPoint(point), {}, true);
   SECTION("Check rules") {
     verifyMeshingAlgorithm(meshing_algorithm);
     const stmesh::detail::Triangulation &triangulation = meshing_algorithm.triangulation();
+    bool checked_rule1{}, checked_rule2{}, checked_rule3{}, checked_rule4{}, checked_rule5{}, checked_rule6{};
     for (const auto &cell : meshing_algorithm.queue())
       std::visit(Overload{
                      [&](const stmesh::detail::Rule1 &r) {
@@ -237,6 +262,7 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
                        REQUIRE(z == r.z0);
                        REQUIRE(std::ranges::all_of(triangulation.verticesInRadius(z, meshing_algorithm.deltaSurface(z)),
                                                    [](const auto &vertex) { return !vertex->data().nonfree_vertex; }));
+                       checked_rule1 = true;
                      },
                      [&](const stmesh::detail::Rule2 &r) {
                        const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);
@@ -252,29 +278,33 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
                          REQUIRE(z == r.z);
                        REQUIRE(2 * meshing_algorithm.deltaSurface(sdf_surface_adapter.closestPoint(z)) <=
                                circumsphere.radius());
+                       checked_rule2 = true;
                      },
                      [&](const stmesh::detail::Rule3 &r) {
                        const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);
                        const stmesh::HyperSphere4 circumsphere = simplex.circumsphere();
                        const stmesh::Vector4F &z = circumsphere.center();
                        REQUIRE(sdf_surface_adapter.inside(z));
-                       REQUIRE(circumsphere.radius() > stmesh::FLOAT_T(0.05));
+                       REQUIRE(circumsphere.radius() > stmesh::FLOAT_T(30.0));
                        REQUIRE(r.z == z);
+                       checked_rule3 = true;
                      },
                      [&](const stmesh::detail::Rule4 &r) {
                        const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);
                        const stmesh::HyperSphere4 circumsphere = simplex.circumsphere();
                        const stmesh::Vector4F &z = circumsphere.center();
                        REQUIRE(sdf_surface_adapter.inside(z));
-                       REQUIRE(simplex.radiusEdgeRatio() >= stmesh::FLOAT_T(20.0));
+                       REQUIRE(simplex.radiusEdgeRatio() >= stmesh::FLOAT_T(1.0));
                        REQUIRE(r.z == z);
+                       checked_rule4 = true;
                      },
                      [&](const stmesh::detail::Rule5 &r) {
                        const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);
                        const stmesh::HyperSphere4 circumsphere = simplex.circumsphere();
                        REQUIRE(sdf_surface_adapter.inside(circumsphere.center()));
-                       REQUIRE(simplex.sliverSimplex(20.0, stmesh::FLOAT_T(0.01)));
+                       REQUIRE(simplex.sliverSimplex(stmesh::FLOAT_T(1.0), stmesh::FLOAT_T(0.5)));
                        REQUIRE(r.vertices == simplex.vertices());
+                       checked_rule5 = true;
                      },
                      [&](const stmesh::detail::Rule6 &r) {
                        const stmesh::GeometricSimplex<4> simplex = triangulation.fullCellSimplex(cell.full_cell);
@@ -283,10 +313,22 @@ TEST_CASE("Test meshing rules", "[meshing_rules][meshing_algorithm]") {
                                  return sub_simplex.vertices() == r.vertices;
                                }) != sub_simplices.end());
                        REQUIRE(meshing_algorithm.voronoiDual(r.vertices).has_value());
+                       auto facet = meshing_algorithm.triangulation().facetFromVertices(r.vertices);
+                       REQUIRE(std::any_of(facet.full_cell()->vertices_begin(), facet.full_cell()->vertices_end(),
+                                           [&, i = 0](const auto &vertex) mutable {
+                                             return i++ != facet.index_of_covertex() && !vertex->data().nonfree_vertex;
+                                           }));
+                       checked_rule6 = true;
                      },
                      [&](const stmesh::detail::Complete & /* unused */) {},
                  },
                  cell.rule);
+    REQUIRE(checked_rule1);
+    REQUIRE(checked_rule2);
+    REQUIRE(checked_rule3);
+    REQUIRE(checked_rule4);
+    REQUIRE(checked_rule5);
+    REQUIRE(checked_rule6);
   }
   const size_t size = meshing_algorithm.queue().size();
   auto i = GENERATE_COPY(Catch::Generators::range(static_cast<size_t>(0), size));
