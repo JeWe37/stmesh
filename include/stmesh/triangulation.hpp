@@ -1,6 +1,7 @@
 #ifndef STMESH_TRIANGULATION_HPP
 #define STMESH_TRIANGULATION_HPP
 
+#include <concepts>
 #include <cstddef>
 #include <optional>
 #include <tuple>

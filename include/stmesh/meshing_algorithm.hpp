@@ -2,7 +2,6 @@
 #define STMESH_MESHING_ALGORITHM_HPP
 
 #include <algorithm>
-#include <concepts> // IWYU pragma: keep
 #include <cstddef>
 #include <limits>
 #include <optional>
@@ -242,9 +241,9 @@ public:
   MeshingAlgorithm(const Surface &surface, FLOAT_T rho_bar, FLOAT_T tau_bar, FLOAT_T zeta, FLOAT_T b, LFS &&lfs,
                    RadiusScheme &&radius_scheme, std::optional<typename Random::result_type> seed = std::nullopt,
                    bool disable_rule6 = false)
-      : triangulation_(calculateBoundingBox(surface, lfs.max())), surface_(surface), lfs_(std::forward<LFS>(lfs)),
-        radius_scheme_(std::forward<RadiusScheme>(radius_scheme)), gen_(), rho_bar_(rho_bar), tau_bar_(tau_bar),
-        zeta_(zeta), b_(b), disable_rule6_(disable_rule6) {
+      : triangulation_(calculateBoundingBox(surface, lfs.max())), surface_(surface), lfs_(std::move(lfs)),
+        radius_scheme_(std::move(radius_scheme)), gen_(), rho_bar_(rho_bar), tau_bar_(tau_bar), zeta_(zeta), b_(b),
+        disable_rule6_(disable_rule6) {
     if (seed)
       gen_.seed(*seed);
     for (auto &full_cell : triangulation_) {

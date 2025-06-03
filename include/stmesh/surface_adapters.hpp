@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <concepts> // IWYU pragma: keep
+#include <concepts>
 #include <cstddef>
 #include <functional>
 #include <iterator>
@@ -93,9 +93,9 @@ template <ExactSDF T> class SDFSurfaceAdapter : public LineRaycastMixin<SDFSurfa
   using Base = LineRaycastMixin<SDFSurfaceAdapter<T>, T::kDimension>;
 
 public:
-  using Surface = T;                                                ///< The exact signed distance function
-  static inline constexpr unsigned kDimension = T::kDimension;      ///< The dimension of the space
-  constexpr static inline FLOAT_T kDt = static_cast<FLOAT_T>(1e-3); ///< The distance threshold for the raycast
+  using Surface = T;                                         ///< The exact signed distance function
+  static constexpr unsigned kDimension = T::kDimension;      ///< The dimension of the space
+  constexpr static FLOAT_T kDt = static_cast<FLOAT_T>(1e-3); ///< The distance threshold for the raycast
 
 private:
   T surface_;
@@ -198,10 +198,10 @@ template <EuclideanDistanceTransform<4> T> class EDTSurfaceAdapter : public Line
   using Base = LineRaycastMixin<EDTSurfaceAdapter<T>, 4>;
 
 public:
-  using Surface = T;                               ///< The Euclidean distance transform
-  static inline constexpr unsigned kDimension = 4; ///< The dimension of the space
+  using Surface = T;                        ///< The Euclidean distance transform
+  static constexpr unsigned kDimension = 4; ///< The dimension of the space
 
-  constexpr static inline FLOAT_T kDt = static_cast<FLOAT_T>(1e-3); ///< The distance threshold for the raycast
+  constexpr static FLOAT_T kDt = static_cast<FLOAT_T>(1e-3); ///< The distance threshold for the raycast
 
 private:
   std::shared_ptr<T> surface_;

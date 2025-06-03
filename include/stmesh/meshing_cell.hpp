@@ -61,7 +61,7 @@ struct Rule {
 };
 
 struct Rule1 : Rule {
-  static constexpr inline int kIndex = 0;
+  static constexpr int kIndex = 0;
 
   template <typename MeshingAlgorithm>
   unsigned check(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell, bool dry_run = false) {
@@ -125,7 +125,7 @@ struct Rule1 : Rule {
 };
 
 struct Rule2 : Rule {
-  static constexpr inline int kIndex = 1;
+  static constexpr int kIndex = 1;
   Vector4F z;
   bool z_outside;
 
@@ -156,7 +156,7 @@ struct Rule2 : Rule {
 };
 
 struct Rule3 : Rule {
-  static constexpr inline int kIndex = 2;
+  static constexpr int kIndex = 2;
   Vector4F z;
 
   template <typename MeshingAlgorithm>
@@ -182,7 +182,7 @@ struct Rule3 : Rule {
 };
 
 struct Rule4 : Rule {
-  static constexpr inline int kIndex = 3;
+  static constexpr int kIndex = 3;
   Vector4F z;
 
   template <typename MeshingAlgorithm>
@@ -207,7 +207,7 @@ struct Rule4 : Rule {
 };
 
 struct Rule5 : Rule {
-  static constexpr inline int kIndex = 4;
+  static constexpr int kIndex = 4;
   Eigen::Matrix<FLOAT_T, 4, 5> vertices;
   unsigned prio;
 
@@ -238,7 +238,7 @@ struct Rule5 : Rule {
 };
 
 struct Rule6 : Rule {
-  static constexpr inline int kIndex = 5;
+  static constexpr int kIndex = 5;
   Eigen::Matrix<FLOAT_T, 4, 4> vertices;
 
   template <typename MeshingAlgorithm>
@@ -319,7 +319,7 @@ struct Rule6 : Rule {
 };
 
 struct Complete : Rule {
-  static constexpr inline int kIndex = 6;
+  static constexpr int kIndex = 6;
 
   template <typename MeshingAlgorithm>
   static unsigned check(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell,
