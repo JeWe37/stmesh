@@ -10,6 +10,7 @@ target_link_system_libraries(
   PRIVATE
           CLI11::CLI11
           fmt::fmt
+          exprtk::exprtk
           spdlog::spdlog
           stmesh::stmesh)
 

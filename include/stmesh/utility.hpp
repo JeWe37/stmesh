@@ -82,6 +82,21 @@ template <std::floating_point T> T consteval sqrt(T x) {
                                                           : std::numeric_limits<T>::quiet_NaN();
 }
 
+/// A constexpr power function
+/**
+ * A constexpr power function. This function calculates the power of a number.
+ *
+ * @param x The exponent
+ * @param N The base
+ * @return $N^x$
+ */
+[[nodiscard]] constexpr static size_t expN(size_t x, size_t N) noexcept {
+  size_t result = 1;
+  for (size_t i = 0; i < x; ++i)
+    result *= N;
+  return result;
+}
+
 /// A constexpr Choose function
 /**
  * A constexpr Choose function. This function calculates the number of ways to choose k elements from a set of n
