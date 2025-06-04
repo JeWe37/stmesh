@@ -99,6 +99,8 @@ include(cmake/PackageProject.cmake)
 stmesh_package_project(
   TARGETS
   stmesher
+  mesh_analyzer
+  data_visualizer
   stmesh_options
   stmesh_warnings
   # FIXME: this does not work! CK

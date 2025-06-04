@@ -1,8 +1,10 @@
 #include "stmesh/triangulation.hpp"
 
+#include <Eigen/src/Core/util/Constants.h>
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <filesystem>
 #include <iterator>
 #include <optional>
 #include <stdexcept>
@@ -13,33 +15,102 @@
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 #include <boost/geometry/index/predicates.hpp>
+#include <boost/iterator/function_output_iterator.hpp>
 
 #include "stmesh/geometric_simplex.hpp"
+#include "stmesh/geometry_helpers.hpp"
 #include "stmesh/meshing_cell.hpp"
+#include "stmesh/mixd.hpp"
+#include "stmesh/problem_types.hpp"
 #include "stmesh/sdf.hpp"
 #include "stmesh/utility.hpp"
 
 namespace stmesh {
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::pointFromVector(const Vector4F &vector) noexcept -> BGPoint {
-  BGPoint point;
-  point.set<0>(vector[0]);
-  point.set<1>(vector[1]);
-  point.set<2>(vector[2]);
-  point.set<3>(vector[3]);
-  return point;
+template <typename Cell>
+detail::MixdCell<Cell>::MixdCell(const TriangulationFromMixdGeneric<CellType> *triangulation, size_t index)
+    : triangulation_(triangulation), index_(index) {}
+
+template <typename Cell> [[nodiscard]] GeometricSimplex<4> detail::MixdCell<Cell>::geometricSimplex() const noexcept {
+  Eigen::Matrix<FLOAT_T, 4, 5> simplex;
+  for (size_t i = 0; i < 5; ++i)
+    simplex.col(static_cast<Eigen::Index>(i)) =
+        triangulation_->mxyz_[static_cast<size_t>(triangulation_->mien_[index_].at(i)) - 1];
+  return GeometricSimplex<4>(simplex);
 }
 
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::vectorFromPoint(const BGPoint &point) noexcept -> Vector4F {
-  return {static_cast<FLOAT_T>(point.get<0>()), static_cast<FLOAT_T>(point.get<1>()),
-          static_cast<FLOAT_T>(point.get<2>()), static_cast<FLOAT_T>(point.get<3>())};
+template <typename Cell> [[nodiscard]] bool detail::MixdCell<Cell>::isSurfaceSide(size_t i) const noexcept {
+  return triangulation_->mrng_[index_].at(mixd::kOmitted.at(i)) > 0;
 }
 
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::boxFromAABB(const Eigen::AlignedBox<FLOAT_T, 4> &aabb) noexcept -> BGBox {
-  return {pointFromVector(aabb.min()), pointFromVector(aabb.max())};
+template class detail::MixdCell<>;
+template class detail::MixdCell<detail::MixdDataCell>;
+
+[[nodiscard]] Eigen::Matrix<FLOAT_T, Eigen::Dynamic, 5> detail::MixdDataCell::data() const noexcept {
+  Eigen::Matrix<FLOAT_T, Eigen::Dynamic, 5> ret(
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
+      static_cast<const TriangulationFromMixdWithData *>(triangulation_)->problem_type_.entries(), 5);
+  for (size_t i = 0; i < 5; ++i) {
+    for (size_t j = 0; j < static_cast<size_t>(ret.rows()); ++j)
+      ret(static_cast<Eigen::Index>(j), static_cast<Eigen::Index>(i)) =
+          // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
+          static_cast<const TriangulationFromMixdWithData *>(triangulation_)
+              ->data_.at(static_cast<size_t>(triangulation_->mien_[index_].at(i) - 1))[j];
+  }
+  return ret;
 }
+
+template <typename MixdCell>
+auto TriangulationFromMixdGeneric<MixdCell>::iterator::dereference() const noexcept -> MixdCell {
+  return {triangulation_, static_cast<size_t>(&*this->base_reference() - triangulation_->mien_.data())};
+}
+
+template <typename MixdCell>
+TriangulationFromMixdGeneric<MixdCell>::iterator::iterator(const TriangulationFromMixdGeneric *triangulation,
+                                                           const std::vector<std::array<int, 5>>::const_iterator &it)
+    : iterator::iterator_adaptor_(it), triangulation_(triangulation) {}
+
+template <typename MixdCell> TriangulationFromMixdGeneric<MixdCell>::iterator::iterator() : triangulation_(nullptr) {}
+
+TriangulationFromMixdWithData::TriangulationFromMixdWithData(const std::filesystem::path &minf_file,
+                                                             const ProblemType &problem_type,
+                                                             const std::filesystem::path &data_file)
+    : TriangulationFromMixdGeneric<detail::MixdDataCell>(minf_file),
+      data_(mixd::readData(data_file, problem_type.entries())), problem_type_(problem_type) {}
+
+template <typename MixdCell>
+TriangulationFromMixdGeneric<MixdCell>::TriangulationFromMixdGeneric(const std::filesystem::path &minf_file) {
+  auto [mxyz_file, mien_file, mrng_file] = mixd::readMinf(minf_file);
+  mxyz_ = mixd::readMxyz(mxyz_file);
+  mien_ = mixd::readIntMixd(mien_file);
+  mrng_ = mixd::readIntMixd(mrng_file);
+}
+
+template <typename MixdCell>
+[[nodiscard]] Eigen::AlignedBox<double, 4> TriangulationFromMixdGeneric<MixdCell>::boundingBox() const noexcept {
+  Eigen::AlignedBox<double, 4> box(mxyz_[0], mxyz_[0]);
+  for (const auto &vertex : mxyz_)
+    box.extend(vertex.cast<double>());
+  return box;
+}
+
+template <typename MixdCell>
+[[nodiscard]] auto TriangulationFromMixdGeneric<MixdCell>::begin() const noexcept -> iterator {
+  return {this, mien_.begin()};
+}
+
+template <typename MixdCell>
+[[nodiscard]] auto TriangulationFromMixdGeneric<MixdCell>::end() const noexcept -> iterator {
+  return {this, mien_.end()};
+}
+
+template <typename MixdCell>
+[[nodiscard]] size_t TriangulationFromMixdGeneric<MixdCell>::findBoundaryRegion(const MixdCell &cell,
+                                                                                size_t j) const noexcept {
+  return static_cast<size_t>(mrng_[cell.index_].at(mixd::kOmitted.at(j)));
+}
+
+template class TriangulationFromMixdGeneric<>;
+template class TriangulationFromMixdGeneric<detail::MixdDataCell>;
 
 template <typename ExtraData> [[nodiscard]] Vector4F Triangulation<ExtraData>::pointToVec(const Point &pt) {
   return {static_cast<FLOAT_T>(pt[0]), static_cast<FLOAT_T>(pt[1]), static_cast<FLOAT_T>(pt[2]),
@@ -247,33 +318,27 @@ template <typename ExtraData>
   return bounding_box_;
 }
 
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::cbegin() const -> DelaunayTriangulation::Finite_full_cell_const_iterator {
+template <typename ExtraData> [[nodiscard]] auto Triangulation<ExtraData>::cbegin() const -> const_iterator {
   return triangulation_.finite_full_cells_begin();
 }
 
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::cend() const -> DelaunayTriangulation::Finite_full_cell_const_iterator {
+template <typename ExtraData> [[nodiscard]] auto Triangulation<ExtraData>::cend() const -> const_iterator {
   return triangulation_.finite_full_cells_end();
 }
 
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::begin() -> DelaunayTriangulation::Finite_full_cell_iterator {
+template <typename ExtraData> [[nodiscard]] auto Triangulation<ExtraData>::begin() -> iterator {
   return triangulation_.finite_full_cells_begin();
 }
 
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::end() -> DelaunayTriangulation::Finite_full_cell_iterator {
+template <typename ExtraData> [[nodiscard]] auto Triangulation<ExtraData>::end() -> iterator {
   return triangulation_.finite_full_cells_end();
 }
 
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::begin() const -> DelaunayTriangulation::Finite_full_cell_const_iterator {
+template <typename ExtraData> [[nodiscard]] auto Triangulation<ExtraData>::begin() const -> const_iterator {
   return triangulation_.finite_full_cells_begin();
 }
 
-template <typename ExtraData>
-[[nodiscard]] auto Triangulation<ExtraData>::end() const -> DelaunayTriangulation::Finite_full_cell_const_iterator {
+template <typename ExtraData> [[nodiscard]] auto Triangulation<ExtraData>::end() const -> const_iterator {
   return triangulation_.finite_full_cells_end();
 }
 

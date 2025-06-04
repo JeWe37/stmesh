@@ -1,4 +1,5 @@
 #include <catch2/catch_approx.hpp>
+#include <catch2/catch_message.hpp>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers.hpp>
 #include <catch2/matchers/catch_matchers_range_equals.hpp>
@@ -245,5 +246,20 @@ TEST_CASE("Test 3-simplex in 4D", "[3simplex][geometric_simplex]") {
                 .maxCoeff() < std::sqrt(kEps));
     REQUIRE(ray.direction() ==
             stmesh::Vector4F{stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(0.0), stmesh::FLOAT_T(1.0)});
+  }
+}
+
+TEST_CASE("Test barycentric coordinates", "[barycentric][geometric_simplex]") {
+  for (int i = 0; i < 10; ++i) {
+    stmesh::GeometricSimplex<4> simplex(Eigen::Matrix<stmesh::FLOAT_T, 4, 5>::Random());
+    for (int j = 0; j < 10; ++j) {
+      const stmesh::Vector4F point = stmesh::Vector4F::Random();
+      const Eigen::Matrix<stmesh::FLOAT_T, 5, 1> barycentric = simplex.barycentricCoordinates(point);
+      INFO("Expected point: " << point.transpose());
+      INFO("Barycentric coordinates: " << barycentric.transpose());
+      INFO("Got point: " << (simplex.vertices() * barycentric).transpose());
+      REQUIRE((simplex.vertices() * barycentric).isApprox(point));
+      REQUIRE(barycentric.sum() == Approx(1.0));
+    }
   }
 }

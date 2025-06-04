@@ -11,7 +11,9 @@
 
 #include <Eigen/Geometry>
 
+#include "stmesh/writable_triangulation.hpp"
 #include "utility.hpp"
+#include "writable_triangulation.hpp"
 
 namespace stmesh {
 /// A concept for an Euclidean distance transform
@@ -46,6 +48,8 @@ concept EuclideanDistanceTransform = requires(const T t, VectorF<D> vec, std::ar
 template <unsigned D, bool LFS = false> class EDTReader {
   struct Impl;
   std::unique_ptr<Impl> pimpl_;
+
+  [[nodiscard]] size_t pointBoundaryRegion(const Vector4F &point) const noexcept;
 
 public:
   /// Construct an Euclidean distance transform reader
@@ -100,13 +104,22 @@ public:
 
   /// An extension to use this as a BoundaryRegionManager
   /**
-   * An extension to use this as a BoundaryRegionManager. This function returns the index of the original image at the
-   * point.
+   * An extension to use this as a BoundaryRegionManager. This function returns the minimal index of the original image
+   * at one of the vertices of the cell face.
    *
-   * @param point The point to find the boundary region of
+   * @param cell The cell to find the boundary region of
+   * @param j The index of the side in the full cell
    * @return The index of the boundary region that the point is inside
    */
-  [[nodiscard]] size_t findBoundaryRegion(const Vector4F &point) const noexcept;
+  [[nodiscard]] size_t findBoundaryRegion(const WritableCell auto &cell, size_t j) const noexcept {
+    size_t max_index = 0;
+    for (size_t i = 0; i < D + 1; ++i) {
+      if (i != j)
+        max_index = std::max(max_index,
+                             pointBoundaryRegion(cell.geometricSimplex().vertices().col(static_cast<Eigen::Index>(i))));
+    }
+    return max_index;
+  }
 
   /// Get the closest point on the surface at a point
   /**

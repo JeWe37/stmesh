@@ -33,6 +33,8 @@ allCorners(const Eigen::AlignedBox<FLOAT_T, D> &box) {
 }
 
 template std::array<VectorF<4>, 16> allCorners(const Eigen::AlignedBox<FLOAT_T, 4> &box);
+template std::array<VectorF<3>, 8> allCorners(const Eigen::AlignedBox<FLOAT_T, 3> &box);
+template std::array<VectorF<2>, 4> allCorners(const Eigen::AlignedBox<FLOAT_T, 2> &box);
 
 template <int D, int N>
 [[nodiscard]] Eigen::Matrix<FLOAT_T, D, D - N> kernel(const Eigen::Matrix<FLOAT_T, D, N> &matrix) noexcept {

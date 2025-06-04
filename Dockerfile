@@ -40,6 +40,8 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
 # Add ITK patch to fix compilation error
 COPY docker/itk.patch /opt/itk.patch
 
+ARG CORES
+
 # Build own version of ITK with patch
 RUN git clone --depth 1 --branch v5.2.1 https://github.com/InsightSoftwareConsortium/ITK /opt/itk-src && \
     cd /opt/itk-src && \
@@ -47,7 +49,7 @@ RUN git clone --depth 1 --branch v5.2.1 https://github.com/InsightSoftwareConsor
     mkdir /opt/itk-gcc-build && \
     cd /opt/itk-gcc-build && \
     cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON -DITKGroup_IO:BOOL=ON -DModule_ITKCommon:BOOL=ON -DITK_USE_SYSTEM_EIGEN:BOOL=ON /opt/itk-src && \
-    cmake --build . -j $(nproc)
+    cmake --build . -j ${CORES:-$(nproc)}
 
 ## Cleanup cached apt data we don't need anymore
 RUN apt-get autoremove -y && apt-get clean
@@ -57,7 +59,7 @@ FROM build AS release
 # Build the project
 WORKDIR /stmesh
 RUN --mount=type=bind,target=.,src=.,rw cmake --preset unixlike-gcc-release && \
-                                        cmake --build --preset unixlike-gcc-release -j && \
+                                        cmake --build --preset unixlike-gcc-release -j ${CORES:-$(nproc)} && \
                                         cmake --install out/build/unixlike-gcc-release/ --prefix /usr
 
 # Cleanup build files
@@ -106,7 +108,7 @@ RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \
 RUN mkdir /opt/itk-clang-build && \
     cd /opt/itk-clang-build && \
     CC=clang CXX=clang++ cmake -DITK_BUILD_DEFAULT_MODULES:BOOL=OFF -DITKGroup_Core:BOOL=OFF -DBUILD_TESTING:BOOL=OFF -DBUILD_EXAMPLES:BOOL=OFF -DModule_ITKDistanceMap:BOOL=ON -DITKGroup_IO:BOOL=ON -DModule_ITKCommon:BOOL=ON -DITK_USE_SYSTEM_EIGEN:BOOL=ON /opt/itk-src && \
-    cmake --build . -j $(nproc)
+    cmake --build . -j ${CORES:-$(nproc)}
 
 # X11 support
 RUN apt-get update -qq && export DEBIAN_FRONTEND=noninteractive && \

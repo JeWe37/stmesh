@@ -9,13 +9,15 @@ add_library(stmesh
   vtk_writer.cpp
   edt.cpp
   boundary_region_manager.cpp
-  mixd_writer.cpp
+  mixd.cpp
   marching_hypercubes.cpp
   voxel_complex.cpp
   rle_bitset.cpp
   bitset.cpp
   lfs_schemes.cpp
   radius_schemes.cpp
+  mesh_project.cpp
+  geometry_helpers.cpp
   ${CMAKE_BINARY_DIR}/src/generator/table.cpp
 )
 
