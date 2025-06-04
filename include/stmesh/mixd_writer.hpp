@@ -5,6 +5,8 @@
 #include <array>
 #include <cstddef>
 #include <filesystem>
+#include <limits>
+#include <set>
 #include <unordered_map>
 #include <vector>
 
@@ -37,13 +39,20 @@ namespace stmesh {
  * the mesh.
  * @param scale The scale for the mxyz file. Defaults to 1.
  * @param min_time The minimum time of the triangulation for offsetting the mxyz file. Defaults to 0.
+ * @param write_ideal Whether to write the closest boundary positions of the vertices to a file with a .ideal.minf.
+ * Defaults to false
  */
 void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unused]] const SurfaceAdapter4 auto &surface,
                const WritableTriangulation auto &triangulation,
                const BoundaryRegionManager auto &boundary_region_manager, stmesh::FLOAT_T scale = 1,
-               stmesh::FLOAT_T min_time = 0) {
+               stmesh::FLOAT_T min_time = 0, bool write_ideal = false) {
+  constexpr static FLOAT_T kNaN = std::numeric_limits<FLOAT_T>::quiet_NaN();
+
   std::unordered_map<Vector4F, int, Vector4FHash> vertex_map;
   std::vector<Vector4F> vertices;
+  std::vector<Vector4F> ideal_vertices;
+  std::set<size_t> boundary_vertices;
+
   std::vector<std::array<int, 5>> full_cell_vertex_ids;
   std::vector<std::array<int, 5>> full_cell_face_ids;
   for (const auto &cell : triangulation) {
@@ -53,24 +62,44 @@ void writeMixd([[maybe_unused]] const std::filesystem::path &file, [[maybe_unuse
       std::array<int, 5> vertex_ids{};
       for (Eigen::Index i = 0; i < 5; ++i) {
         auto [it, inserted] = vertex_map.try_emplace(simplex.vertices().col(i), vertices.size());
-        if (inserted)
+        if (inserted) {
           vertices.emplace_back(simplex.vertices().col(i));
+          if (write_ideal)
+            ideal_vertices.emplace_back(surface.closestPoint(vertices.back()));
+        }
         vertex_ids.at(static_cast<size_t>(i)) = it->second;
       }
       if (!mixd::positivePentatopeElementDet(vertex_ids, vertices)) {
         spdlog::warn("Pentatope has negative determinant! Mesh will be tangled.");
         break;
       }
-      std::ranges::transform(vertex_ids, vertex_ids.begin(), [&](size_t idx) { return idx + 1; });
-      full_cell_vertex_ids.emplace_back(vertex_ids);
       std::array<int, 5> &face_boundary_ids = full_cell_face_ids.emplace_back();
       for (size_t i = 0; i < 5; ++i) {
+        if (cell.isSurfaceSide(i)) {
+          for (size_t j = 0; j < 5; ++j) {
+            if (j != i)
+              boundary_vertices.insert(static_cast<size_t>(vertex_ids.at(j)));
+          }
+        }
         size_t j = mixd::kToOmit.at(i);
         face_boundary_ids.at(i) = !cell.isSurfaceSide(j) ? 0 : boundary_region_manager.findBoundaryRegion(cell, j);
       }
+      std::ranges::transform(vertex_ids, vertex_ids.begin(), [&](size_t idx) { return idx + 1; });
+      full_cell_vertex_ids.emplace_back(vertex_ids);
     }
   }
   std::filesystem::path mxyz_file = mixd::writeMxyz(file, vertices, scale, min_time);
+  if (write_ideal) {
+    size_t start = 0;
+    for (size_t boundary_vertex : boundary_vertices) {
+      for (; start < boundary_vertex; ++start)
+        ideal_vertices[start] = Vector4F::Constant(kNaN);
+      start++;
+    }
+    std::filesystem::path ideal_file = file;
+    ideal_file.replace_extension(".ideal.minf");
+    mixd::writeMxyz(ideal_file, vertices, scale, min_time);
+  }
   std::filesystem::path mien_file = mixd::writeIntMixd(file, ".mien", full_cell_vertex_ids);
   std::filesystem::path mrng_file = mixd::writeIntMixd(file, ".mrng", full_cell_face_ids);
   mixd::writeMinf(file, mxyz_file, mien_file, mrng_file, full_cell_vertex_ids.size(), vertices.size());
