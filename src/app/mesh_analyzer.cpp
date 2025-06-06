@@ -2,9 +2,12 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <optional>
 #include <stmesh/problem_types.hpp>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <CLI/App.hpp>
 // NOLINTNEXTLINE(misc-include-cleaner)
@@ -25,65 +28,87 @@
 int main(int argc, const char **argv) try {
   spdlog::cfg::load_env_levels();
   // NOLINTNEXTLINE(misc-const-correctness)
-  CLI::App app{fmt::format("{} version {}", stmesh::cmake::project_name, stmesh::cmake::project_version)};
+  CLI::App app{fmt::format("{} version {}(built from {})", stmesh::cmake::project_name, stmesh::cmake::project_version,
+                           stmesh::cmake::git_sha)};
 
   // NOLINTBEGIN(misc-const-correctness)
+  CLI::App *version_group = app.add_option_group("Version")->configurable();
   bool show_version{};
-  app.add_flag("--version", show_version, "Show version information");
+  version_group->add_flag("--version", show_version, "Show version information");
+  CLI::App *regular_group = app.add_option_group("Regular")->configurable();
+  CLI::TriggerOff(version_group, regular_group);
 
   std::optional<std::filesystem::path> stats_output_file;
-  app.add_option("--statistics-output", stats_output_file, "Write statistics to a file");
+  regular_group->add_option("--statistics-output", stats_output_file, "Write statistics to a file");
 
   std::optional<std::filesystem::path> vtk_output_dir;
   CLI::Option *vtk_output_dir_option =
-      app.add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to")
+      regular_group->add_option("--vtk-output-dir", vtk_output_dir, "Directory to write vtk files to")
           ->check(CLI::ExistingDirectory);
 
   std::string vtk_output_name_format;
-  app.add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk output files")
+  regular_group->add_option("--vtk-output-name-format", vtk_output_name_format, "Format string for vtk output files")
       ->default_val("mesh_{}.vtu")
       ->needs(vtk_output_dir_option);
 
   // NOLINTBEGIN(*-magic-numbers,cppcoreguidelines-init-variables)
   stmesh::FLOAT_T vtk_output_dt;
-  app.add_option("--vtk-output-dt", vtk_output_dt, "Time step for vtk output")
+  regular_group->add_option("--vtk-output-dt", vtk_output_dt, "Time step for vtk output")
       ->default_val(stmesh::FLOAT_T(0.5))
       ->needs(vtk_output_dir_option);
 
   std::string vtk_out_coord_format;
-  app.add_option("--vtk-out-coord-format", vtk_out_coord_format, "Format string for the coordinates file name")
+  regular_group
+      ->add_option("--vtk-out-coord-format", vtk_out_coord_format, "Format string for the coordinates file name")
       ->default_val("")
       ->needs(vtk_output_dir_option);
 
   std::string vtk_output_vtp_format;
-  app.add_option("--vtk-output-vtp-format", vtk_output_vtp_format, "Format string for the vtp output files")
+  regular_group->add_option("--vtk-output-vtp-format", vtk_output_vtp_format, "Format string for the vtp output files")
       ->default_val("")
       ->needs(vtk_output_dir_option);
 
   size_t vtk_output_blocks;
-  app.add_option("--vtk-output-blocks", vtk_output_blocks, "Number of blocks for vtk output")
+  regular_group->add_option("--vtk-output-blocks", vtk_output_blocks, "Number of blocks for vtk output")
       ->default_val(1)
       ->needs(vtk_output_dir_option);
 
   stmesh::FLOAT_T output_scale;
-  app.add_option("--output-scale", output_scale, "Scale factor for output")->default_val(stmesh::FLOAT_T(1.0));
+  regular_group->add_option("--output-scale", output_scale, "Scale factor for output")
+      ->default_val(stmesh::FLOAT_T(1.0));
   // NOLINTEND(*-magic-numbers,cppcoreguidelines-init-variables)
 
   std::optional<std::string> data_file;
-  CLI::Option *data_file_option = app.add_option("--data-file", data_file, "The name of the data file to read");
+  CLI::Option *data_file_option =
+      regular_group->add_option("--data-file", data_file, "The name of the data file to read");
 
-  std::string problem_type_str;
-  data_file_option->needs(
-      app.add_option("--problem-type", problem_type_str, "The problem type to use for the data file")
-          ->check(CLI::IsMember(stmesh::kNameMap))
-          ->needs(data_file_option));
+  std::optional<std::string> problem_type_str;
+  regular_group->add_option("--problem-type", problem_type_str, "The problem type to use for the data file")
+      ->check(CLI::IsMember(stmesh::kNameMap))
+      ->needs(data_file_option);
+
+  std::optional<std::vector<stmesh::DataEntry>> data_entries;
+  regular_group
+      ->add_option_function<std::vector<std::pair<std::string, size_t>>>(
+          "--data-entry",
+          [&data_entries](const auto vec) {
+            data_entries = std::vector<stmesh::DataEntry>{};
+            for (const auto &[name, length] : vec)
+              data_entries->emplace_back(name, length);
+          },
+          "The data entries to construct the problem type from")
+      ->take_all()
+      ->needs(data_file_option);
 
   std::string mixd_file_name;
-  app.add_option("mixd_file_name", mixd_file_name, "The name of the MIXD file to read")->required();
+  regular_group->add_option("mixd_file_name", mixd_file_name, "The name of the MIXD file to read")->required();
 
   Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact> transformation =
       Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact>::Identity();
   auto data = addTransformSubcommand(app, transformation);
+
+  std::string write_config;
+  regular_group->add_option("--write-config", write_config, "Write the config to a file");
 
   app.set_config("--config")->required(false);
   app.callback([&]() { spdlog::info("Using config:\n{}", app.config_to_str()); });
@@ -92,7 +117,13 @@ int main(int argc, const char **argv) try {
   CLI11_PARSE(app, argc, argv);
 
   if (show_version) {
-    fmt::print("{}\n", stmesh::cmake::project_version);
+    fmt::print("{} commit {}\n", stmesh::cmake::project_version, stmesh::cmake::git_sha);
+    return EXIT_SUCCESS;
+  }
+  if (!write_config.empty()) {
+    auto formatter = app.get_config_formatter();
+    std::ofstream config_file(write_config);
+    config_file << formatter->to_config(&app, true, true, "");
     return EXIT_SUCCESS;
   }
 
@@ -113,7 +144,10 @@ int main(int argc, const char **argv) try {
   if (data_file) {
     spdlog::info("Adding data from {}...", *data_file);
     const stmesh::TriangulationFromMixdWithData triangulation_from_mixd(
-        mixd_file_name, stmesh::kNameMap.at(problem_type_str), *data_file);
+        mixd_file_name, *data_file,
+        data_entries ? stmesh::ProblemType{*data_entries}
+                     // NOLINTNEXTLINE(readability-avoid-nested-conditional-operator)
+                     : (problem_type_str ? std::optional{stmesh::kNameMap.at(*problem_type_str)} : std::nullopt));
     output(triangulation_from_mixd);
   } else {
     const stmesh::TriangulationFromMixd triangulation_from_mixd(mixd_file_name);

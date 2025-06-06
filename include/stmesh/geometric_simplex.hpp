@@ -6,9 +6,12 @@
 #include <ranges>
 #include <utility>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
 #include <CGAL/Polyhedron_3.h>
 #include <CGAL/convex_hull_3.h>
+#pragma GCC diagnostic pop
 #include <Eigen/Core>
 #include <Eigen/Geometry>
 

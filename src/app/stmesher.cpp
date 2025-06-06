@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <exception>
 #include <filesystem>
+#include <fstream>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -45,7 +46,8 @@ void mutuallyExclusiveOptions(const std::vector<CLI::App *> &apps) {
 int main(int argc, const char **argv) try {
   spdlog::cfg::load_env_levels();
   // NOLINTNEXTLINE(misc-const-correctness)
-  CLI::App app{fmt::format("{} version {}", stmesh::cmake::project_name, stmesh::cmake::project_version)};
+  CLI::App app{fmt::format("{} version {}(built from {})", stmesh::cmake::project_name, stmesh::cmake::project_version,
+                           stmesh::cmake::git_sha)};
 
   // NOLINTBEGIN(misc-const-correctness)
   bool show_version{};
@@ -124,10 +126,13 @@ int main(int argc, const char **argv) try {
   std::optional<unsigned> seed;
   app.add_option("--seed", seed, "Seed for random number generation");
 
-  CLI::App *edt_subcommand = app.add_subcommand("edt_geometry", "Use an EDT file for geometry");
-  CLI::App *hypercube_subcommand = app.add_subcommand("hypercube_geometry", "Use hypercube as geometry");
-  CLI::App *hypersphere_subcommand = app.add_subcommand("hypersphere_geometry", "Use hypersphere as geometry");
-  CLI::App *cylinder_subcommand = app.add_subcommand("cylinder_geometry", "Use time-extruded cylinder as geometry");
+  CLI::App *edt_subcommand = app.add_subcommand("edt_geometry", "Use an EDT file for geometry")->configurable();
+  CLI::App *hypercube_subcommand =
+      app.add_subcommand("hypercube_geometry", "Use hypercube as geometry")->configurable();
+  CLI::App *hypersphere_subcommand =
+      app.add_subcommand("hypersphere_geometry", "Use hypersphere as geometry")->configurable();
+  CLI::App *cylinder_subcommand =
+      app.add_subcommand("cylinder_geometry", "Use time-extruded cylinder as geometry")->configurable();
 
   mutuallyExclusiveOptions({edt_subcommand, hypercube_subcommand, hypersphere_subcommand, cylinder_subcommand});
 
@@ -190,9 +195,18 @@ int main(int argc, const char **argv) try {
   app.add_flag("--ideal-mixd-positions", ideal_mixd_positions, "Write ideal positions to the MIXD file")
       ->needs(mixd_output_file_option);
 
+  bool compute_dual = false;
+  app.add_flag("--compute-dual", compute_dual, "Include the dual in the mrng file")->needs(mixd_output_file_option);
+
+  bool write_neim = false;
+  app.add_flag("--write-neim", write_neim, "Write the node element index mapping")->needs(mixd_output_file_option);
+
   Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact> transformation =
       Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact>::Identity();
   auto data = addTransformSubcommand(app, transformation);
+
+  std::string write_config;
+  app.add_option("--write-config", write_config, "Write the config to a file");
 
   app.set_config("--config")->required(false);
   app.callback([&]() { spdlog::info("Using config:\n{}", app.config_to_str()); });
@@ -201,7 +215,13 @@ int main(int argc, const char **argv) try {
   CLI11_PARSE(app, argc, argv);
 
   if (show_version) {
-    fmt::print("{}\n", stmesh::cmake::project_version);
+    fmt::print("{} commit {}\n", stmesh::cmake::project_version, stmesh::cmake::git_sha);
+    return EXIT_SUCCESS;
+  }
+  if (!write_config.empty()) {
+    auto formatter = app.get_config_formatter();
+    std::ofstream config_file(write_config);
+    config_file << formatter->to_config(&app, true, true, "");
     return EXIT_SUCCESS;
   }
 
@@ -240,10 +260,10 @@ int main(int argc, const char **argv) try {
       spdlog::info("Writing MIXD files to {}...", mixd_output_file->string());
       if (use_edt_file_boundary_regions)
         stmesh::writeMixd(*mixd_output_file, surface_adapter, writable_triangulation, *edt_reader, output_scale,
-                          min_time, ideal_mixd_positions);
+                          min_time, ideal_mixd_positions, write_neim, compute_dual);
       else
         stmesh::writeMixd(*mixd_output_file, surface_adapter, writable_triangulation, hypercube_boundary_manager,
-                          output_scale, min_time, ideal_mixd_positions);
+                          output_scale, min_time, ideal_mixd_positions, write_neim, compute_dual);
     }
     if (stats_output_file) {
       spdlog::info("Writing statistics to {}...", stats_output_file->string());
@@ -285,17 +305,18 @@ int main(int argc, const char **argv) try {
         return expression.value();
       };
 
-      if (radius_scheme == RadiusSchemes::kLfs) {
+      if (radius_scheme == RadiusSchemes::kLfs && edt_reader) {
         if constexpr (LFS) {
           spdlog::debug("Using LFS radius scheme");
           mesh(surface_adapter, std::forward<decltype(lfs_scheme)>(lfs_scheme),
                stmesh::radius_schemes::LFSRadius(edt_reader, radius_scheme_lambda), edt_reader);
         } else
           return false;
-      } else if (radius_scheme == RadiusSchemes::kBoundary && edt_reader) {
+      } else if (radius_scheme == RadiusSchemes::kBoundary) {
         spdlog::debug("Using boundary distance radius scheme");
         mesh(surface_adapter, std::forward<decltype(lfs_scheme)>(lfs_scheme),
-             stmesh::radius_schemes::BoundaryDistanceRadius(edt_reader, radius_scheme_lambda), edt_reader);
+             stmesh::radius_schemes::BoundaryDistanceRadius(surface_adapter.signedDistanceType(), radius_scheme_lambda),
+             edt_reader);
       } else
         return false;
     }

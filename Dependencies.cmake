@@ -35,7 +35,7 @@ function(stmesh_setup_dependencies)
   endif()
 
   if (NOT TARGET CGAL::CGAL)
-    cpmaddpackage("gh:CGAL/CGAL@5.4")
+    cpmaddpackage("gh:CGAL/CGAL@5.6")
   endif()
 
   set(ITK_USE_SYSTEM_EIGEN ON)
@@ -125,4 +125,16 @@ function(stmesh_setup_dependencies)
   add_library(exprtk INTERFACE)
   target_include_directories(exprtk SYSTEM INTERFACE ${exprtk_SOURCE_DIR})
   add_library(exprtk::exprtk ALIAS exprtk)
+
+  if (stmesh_BUILD_PY4DPROJECT)
+    find_package(Python 3.12 COMPONENTS Interpreter Development.Module Development.SABIModule REQUIRED)
+    set(Python_INCLUDE_DIRS ${Python_INCLUDE_DIRS} PARENT_SCOPE)
+    set(Python_VERSION ${Python_VERSION} PARENT_SCOPE)
+    set(Python_INTERPRETER_ID ${Python_INTERPRETER_ID} PARENT_SCOPE)
+    CPMAddPackage(
+      Name nanobind
+      GITHUB_REPOSITORY wjakob/nanobind
+      GIT_TAG v2.6.1
+    )
+  endif()
 endfunction()

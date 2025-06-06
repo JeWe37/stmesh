@@ -13,7 +13,10 @@
 #include <vector>
 
 #include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
 #include <CGAL/Polyhedron_3.h>
+#pragma GCC diagnostic pop
 
 #include "stmesh/geometric_simplex.hpp"
 #include "stmesh/sdf.hpp"

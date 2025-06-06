@@ -29,7 +29,7 @@ using Triangulation = Triangulation<ExtraData>;
 
 struct Rule {
   [[nodiscard]] static unsigned priority() noexcept { return 0; }
-  Vector4F z0;
+  Vector4F z0{Vector4F::Zero()};
 
   template <typename MeshingAlgorithm>
   static unsigned check(const MeshingAlgorithm & /*unused*/, Triangulation::FullCellHandle /*unused*/,
@@ -126,7 +126,7 @@ struct Rule1 : Rule {
 
 struct Rule2 : Rule {
   static constexpr int kIndex = 1;
-  Vector4F z;
+  Vector4F z{Vector4F::Zero()};
   bool z_outside;
 
   template <typename MeshingAlgorithm>
@@ -157,7 +157,7 @@ struct Rule2 : Rule {
 
 struct Rule3 : Rule {
   static constexpr int kIndex = 2;
-  Vector4F z;
+  Vector4F z{Vector4F::Zero()};
 
   template <typename MeshingAlgorithm>
   unsigned check(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell,
@@ -183,7 +183,7 @@ struct Rule3 : Rule {
 
 struct Rule4 : Rule {
   static constexpr int kIndex = 3;
-  Vector4F z;
+  Vector4F z{Vector4F::Zero()};
 
   template <typename MeshingAlgorithm>
   unsigned check(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell,
@@ -208,7 +208,7 @@ struct Rule4 : Rule {
 
 struct Rule5 : Rule {
   static constexpr int kIndex = 4;
-  Eigen::Matrix<FLOAT_T, 4, 5> vertices;
+  Eigen::Matrix<FLOAT_T, 4, 5> vertices{Eigen::Matrix<FLOAT_T, 4, 5>::Zero()};
   unsigned prio;
 
   // cppcheck-suppress duplInheritedMember
@@ -239,7 +239,7 @@ struct Rule5 : Rule {
 
 struct Rule6 : Rule {
   static constexpr int kIndex = 5;
-  Eigen::Matrix<FLOAT_T, 4, 4> vertices;
+  Eigen::Matrix<FLOAT_T, 4, 4> vertices{Eigen::Matrix<FLOAT_T, 4, 4>::Zero()};
 
   template <typename MeshingAlgorithm>
   unsigned check(MeshingAlgorithm &meshing_algorithm, Triangulation::FullCellHandle full_cell, bool dry_run = false) {

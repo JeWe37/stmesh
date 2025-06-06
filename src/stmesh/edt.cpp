@@ -152,8 +152,8 @@ template <unsigned D, bool LFS> struct EDTReader<D, LFS>::Impl {
     add_image_filter->ReleaseDataFlagOn();
     add_image_filter->Update();
 
-    subtract_image_filter->SetInput1(not_distance_map_image_filter->GetDistanceMap());
-    subtract_image_filter->SetInput2(distance_map_image_filter->GetDistanceMap());
+    subtract_image_filter->SetInput1(distance_map_image_filter->GetDistanceMap());
+    subtract_image_filter->SetInput2(not_distance_map_image_filter->GetDistanceMap());
     subtract_image_filter->ReleaseDataFlagOn();
     subtract_image_filter->Update();
 
@@ -237,13 +237,13 @@ template <unsigned D, bool LFS> EDTReader<D, LFS>::~EDTReader() = default;
 
 template <unsigned D, bool LFS> Vector4F EDTReader<D, LFS>::spacing() const noexcept { return pimpl_->spacing(); }
 
-template <unsigned D, bool LFS> FLOAT_T EDTReader<D, LFS>::signedDistanceAt(const VectorF<D> &point) const noexcept {
+template <unsigned D, bool LFS> FLOAT_T EDTReader<D, LFS>::signedDistance(const VectorF<D> &point) const noexcept {
   return pimpl_->distance_map->GetPixel(pimpl_->vectorToIndex(point));
 }
 
 template <unsigned D, bool LFS>
 [[nodiscard]] std::vector<FLOAT_T>
-EDTReader<D, LFS>::signedDistanceAt(const VectorF<D> &point, const std::span<const size_t, D> &size) const noexcept {
+EDTReader<D, LFS>::signedDistance(const VectorF<D> &point, const std::span<const size_t, D> &size) const noexcept {
   const typename Impl::Index min_corner = pimpl_->vectorToIndex(point);
   std::vector<FLOAT_T> result;
   result.reserve(std::accumulate(size.begin(), size.end(), size_t{1}, std::multiplies<>()));

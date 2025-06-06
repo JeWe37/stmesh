@@ -197,11 +197,11 @@ public:
    * into the triangulation. The data file directly is read and the data is loaded into the triangulation.
    *
    * @param minf_file The path to the minf file
-   * @param problem_type The problem type data to read
    * @param data_file The path to the data file
+   * @param problem_type The problem type data to read
    */
-  TriangulationFromMixdWithData(const std::filesystem::path &minf_file, const ProblemType &problem_type,
-                                const std::filesystem::path &data_file);
+  TriangulationFromMixdWithData(const std::filesystem::path &minf_file, const std::filesystem::path &data_file,
+                                const std::optional<ProblemType> &problem_type);
 };
 
 static_assert(WritableTriangulation<TriangulationFromMixdWithData>);

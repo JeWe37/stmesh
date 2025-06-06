@@ -24,6 +24,12 @@
 #include "utility.hpp"
 
 namespace stmesh {
+namespace detail {
+template <typename T, unsigned D>
+concept SignedDistanceSharedPtr =
+    std::is_same_v<T, std::shared_ptr<typename T::element_type>> && SignedDistance<typename T::element_type, D>;
+}
+
 /// A concept for a surface adapter
 /**
  * A concept for a surface adapter. A surface adapter is a class that provides a way to interact with a surface. It
@@ -43,6 +49,7 @@ concept SurfaceAdapter = requires(const T t, HyperSphere<D> sphere, VectorF<D> v
   { t.boundingBox() } -> std::convertible_to<Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)>>;
   { t.raycast(vec, vec, num) } -> std::convertible_to<std::optional<VectorF<D>>>;
   { t.raycast(line, num) } -> std::convertible_to<std::optional<VectorF<D>>>;
+  { t.signedDistanceType() } -> detail::SignedDistanceSharedPtr<D>;
 };
 
 /// A concept for a surface adapter in 4 dimensions
@@ -181,8 +188,19 @@ public:
     return std::nullopt;
   }
 
+  /// Returns the underlying SDF
+  /**
+   * Returns the underlying SDF. This function returns a shared pointer to the underlying SDF, making a copy of it for
+   * consistency.
+   *
+   * @return A shared pointer to the underlying SDF
+   */
+  [[nodiscard]] std::shared_ptr<T> signedDistanceType() const noexcept { return std::make_shared<T>(surface_); }
+
   using Base::raycast;
 };
+
+static_assert(SurfaceAdapter<SDFSurfaceAdapter<HyperSphere4>, 4>);
 
 /// A surface adapter for a Euclidean distance transform
 /**
@@ -227,9 +245,9 @@ private:
   [[nodiscard]] std::vector<bool> getSigns(const Vector4F &point, const std::span<const size_t, 4> sizes) const {
     Vector4F spacing = surface_->spacing();
     Vector4F min_corner = point.cwiseProduct(spacing) - FLOAT_T(0.5) * spacing;
-    std::vector<FLOAT_T> distances = surface_->signedDistanceAt(min_corner, sizes);
+    std::vector<FLOAT_T> distances = surface_->signedDistance(min_corner, sizes);
     std::vector<bool> signs;
-    std::ranges::transform(distances, std::back_inserter(signs), [](FLOAT_T distance) { return distance > 0; });
+    std::ranges::transform(distances, std::back_inserter(signs), [](FLOAT_T distance) { return distance < 0; });
     return signs;
   }
 
@@ -309,7 +327,7 @@ private:
     std::optional<Vector4F> initial_result =
         surfaceRayIntersection((point - min_corner).cwiseQuotient(spacing),
                                (rounded_point - min_corner).cwiseQuotient(spacing), corner_values, point_inside);
-    if (*point_inside != (surface_->signedDistanceAt(rounded_point) > 0))
+    if (*point_inside != (surface_->signedDistance(rounded_point) < 0))
       // should this not be the case, just find the intersection of the ray from the point to the rounded_point with the
       // surface, this should be close enough and should definitely exist
       return initial_result->cwiseProduct(spacing) + min_corner;
@@ -424,7 +442,18 @@ public:
     return result;
   }
 
+  /// Returns underlying EDTReader
+  /**
+   * Returns the underlying EDTReader. This provides the signedDistance(vec) function. Returned as a shared pointer
+   * directly.
+   *
+   * @return A shared pointer to the underlying EDTReader
+   */
+  [[nodiscard]] std::shared_ptr<T> signedDistanceType() const noexcept { return surface_; }
+
   using Base::raycast;
 };
+
+static_assert(SurfaceAdapter<EDTSurfaceAdapter<EDTReader4<false>>, 4>);
 } // namespace stmesh
 #endif

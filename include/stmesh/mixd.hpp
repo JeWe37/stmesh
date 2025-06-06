@@ -33,6 +33,16 @@ void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::pa
                const std::filesystem::path &mien_file, const std::filesystem::path &mrng_file, size_t number_elements,
                size_t number_nodes);
 
+/// Writes the neim file
+/**
+ * Writes the neim file. This function writes the neim file, which contains the node element index mapping. The mapping
+ * is padded with zeros to ensure all rows have the same length.
+ *
+ * @param neim_file The path to the neim file to write
+ * @param neim The node element index mapping
+ */
+void writeNeim(const std::filesystem::path &neim_file, const std::vector<std::vector<int>> &neim);
+
 /// Writes the mxyz file
 /**
  * Writes the mxyz file. This function writes the mxyz file, which contains the vertices of the mesh. The vertices are

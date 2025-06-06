@@ -28,7 +28,7 @@ struct TransformData {
 [[nodiscard]] inline TransformData
 addTransformSubcommand(CLI::App &app, Eigen::Transform<stmesh::FLOAT_T, 4, Eigen::AffineCompact> &transform_matrix) {
   TransformData data;
-  auto *transform = app.add_subcommand("transform", "Apply 4D affine transformation");
+  auto *transform = app.add_subcommand("transform", "Apply 4D affine transformation")->configurable();
 
   transform_matrix.setIdentity();
 

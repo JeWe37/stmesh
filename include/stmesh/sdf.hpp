@@ -24,9 +24,8 @@ namespace stmesh {
  * @tparam D The dimension of the space
  */
 template <typename T, unsigned D>
-concept SignedDistanceField = requires(T t, VectorF<D> vec) {
+concept SignedDistanceField = SignedDistance<T, D> && requires(T t, VectorF<D> vec) {
   { t.distance(vec) } -> std::convertible_to<FLOAT_T>;
-  { t.signedDistance(vec) } -> std::convertible_to<FLOAT_T>;
   { t.normal(vec) } -> std::convertible_to<VectorF<D>>;
   { t.boundingBox() } -> std::convertible_to<Eigen::AlignedBox<FLOAT_T, static_cast<int>(D)>>;
 };

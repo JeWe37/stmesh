@@ -22,8 +22,7 @@ void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::pa
   out << "ne " << number_elements << "\n";
   out << "nn " << number_nodes << "\n";
   out << "nen " << 5 << "\n";
-  out << "nef " << 5 << "\n";
-  out << "nsd " << 4 << "\n";
+  out << "nmd " << 4 << "\n";
   // ndf probably not needed
   // NOLINTNEXTLINE(*-magic-numbers)
   // out << "ndf " << 4 << "\n";
@@ -31,6 +30,22 @@ void writeMinf(const std::filesystem::path &minf_file, const std::filesystem::pa
   out << "mxyz " << mxyz_file.string() << "\n";
   out << "mien " << mien_file.string() << "\n";
   out << "mrng " << mrng_file.string() << "\n";
+}
+
+void writeNeim(const std::filesystem::path &neim_file, const std::vector<std::vector<int>> &neim) {
+  const size_t len = std::ranges::max_element(neim, {}, &std::vector<int>::size)->size();
+  std::ofstream out(neim_file);
+  constexpr static std::array<char, sizeof(int)> kZeroBytes{};
+  for (const auto &row : neim) {
+    for (const int id : row) {
+      auto id_bytes = std::bit_cast<std::array<char, sizeof(int)>>(id);
+      if constexpr (std::endian::native != std::endian::big)
+        std::reverse(id_bytes.begin(), id_bytes.end());
+      out.write(id_bytes.data(), sizeof(int));
+    }
+    for (size_t i = row.size(); i < len; ++i)
+      out.write(kZeroBytes.data(), sizeof(int));
+  }
 }
 
 std::filesystem::path writeMxyz(std::filesystem::path file, const std::vector<Vector4F> &vertices,
@@ -64,7 +79,8 @@ std::filesystem::path writeIntMixd(std::filesystem::path file, std::string_view 
   return file;
 }
 
-bool positivePentatopeElementDet(const std::array<int, 5> &vertex_ids, const std::vector<Vector4F> &vertices) {
+[[nodiscard]] bool positivePentatopeElementDet(const std::array<int, 5> &vertex_ids,
+                                               const std::vector<Vector4F> &vertices) {
   Vector4F xr1 = vertices[static_cast<size_t>(vertex_ids[0])] - vertices[static_cast<size_t>(vertex_ids[4])];
   Vector4F xr2 = vertices[static_cast<size_t>(vertex_ids[1])] - vertices[static_cast<size_t>(vertex_ids[4])];
   Vector4F xr3 = vertices[static_cast<size_t>(vertex_ids[2])] - vertices[static_cast<size_t>(vertex_ids[4])];
@@ -84,7 +100,7 @@ bool positivePentatopeElementDet(const std::array<int, 5> &vertex_ids, const std
   return dettmp > FLOAT_T();
 }
 
-std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file) {
+[[nodiscard]] std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file) {
   std::ifstream in(mxyz_file, std::ios::binary);
   std::vector<Vector4F> vertices;
   while (in) {
@@ -106,7 +122,7 @@ std::vector<Vector4F> readMxyz(const std::filesystem::path &mxyz_file) {
   throw std::runtime_error("Unexpected end of file");
 }
 
-std::vector<std::vector<FLOAT_T>> readData(const std::filesystem::path &data_file, size_t n) {
+[[nodiscard]] std::vector<std::vector<FLOAT_T>> readData(const std::filesystem::path &data_file, size_t n) {
   std::ifstream in(data_file, std::ios::binary);
   std::vector<std::vector<FLOAT_T>> vertices;
   while (in) {
@@ -127,7 +143,7 @@ std::vector<std::vector<FLOAT_T>> readData(const std::filesystem::path &data_fil
   throw std::runtime_error("Unexpected end of file");
 }
 
-std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file) {
+[[nodiscard]] std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file) {
   std::ifstream in(file, std::ios::binary);
   std::vector<std::array<int, 5>> full_cell_vertex_ids;
   while (in) {
@@ -149,7 +165,7 @@ std::vector<std::array<int, 5>> readIntMixd(const std::filesystem::path &file) {
   throw std::runtime_error("Unexpected end of file");
 }
 
-MinfData readMinf(const std::filesystem::path &minf_file) {
+[[nodiscard]] MinfData readMinf(const std::filesystem::path &minf_file) {
   std::ifstream in(minf_file);
   MinfData data;
   while (in) {

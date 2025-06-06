@@ -5,7 +5,10 @@
 #include <array>
 #include <cstddef>
 #include <filesystem>
+#include <fstream>
+#include <ios>
 #include <iterator>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <tuple>
@@ -72,10 +75,18 @@ TriangulationFromMixdGeneric<MixdCell>::iterator::iterator(const TriangulationFr
 template <typename MixdCell> TriangulationFromMixdGeneric<MixdCell>::iterator::iterator() : triangulation_(nullptr) {}
 
 TriangulationFromMixdWithData::TriangulationFromMixdWithData(const std::filesystem::path &minf_file,
-                                                             const ProblemType &problem_type,
-                                                             const std::filesystem::path &data_file)
-    : TriangulationFromMixdGeneric<detail::MixdDataCell>(minf_file),
-      data_(mixd::readData(data_file, problem_type.entries())), problem_type_(problem_type) {}
+                                                             const std::filesystem::path &data_file,
+                                                             const std::optional<ProblemType> &problem_type)
+    : TriangulationFromMixdGeneric<detail::MixdDataCell>(minf_file) {
+  std::ifstream data_file_stream(data_file, std::ios::binary);
+  data_file_stream.ignore(std::numeric_limits<std::streamsize>::max());
+  const auto data_file_size = static_cast<size_t>(data_file_stream.gcount()) / sizeof(FLOAT_T);
+  if (!problem_type.has_value())
+    problem_type_ = genericProblemType(data_file_size / mxyz_.size());
+  else
+    problem_type_ = *problem_type;
+  data_ = mixd::readData(data_file, problem_type_.entries());
+}
 
 template <typename MixdCell>
 TriangulationFromMixdGeneric<MixdCell>::TriangulationFromMixdGeneric(const std::filesystem::path &minf_file) {
@@ -113,8 +124,11 @@ template class TriangulationFromMixdGeneric<>;
 template class TriangulationFromMixdGeneric<detail::MixdDataCell>;
 
 template <typename ExtraData> [[nodiscard]] Vector4F Triangulation<ExtraData>::pointToVec(const Point &pt) {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wnull-dereference"
   return {static_cast<FLOAT_T>(pt[0]), static_cast<FLOAT_T>(pt[1]), static_cast<FLOAT_T>(pt[2]),
           static_cast<FLOAT_T>(pt[3])};
+#pragma GCC diagnostic pop
 }
 
 template <typename ExtraData>
